@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,8 +8,8 @@ import (
 	"net/http"
 
 	"github.com/asdine/storm"
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/rs/cors"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -40,9 +38,10 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/login", login).Methods("POST") // GET will be handles by React app
 	r.HandleFunc("/create-user", createUser).Methods("POST")
-	originsOK := handlers.AllowedOrigins([]string{"*"})
+	//originsOK := handlers.AllowedOrigins([]string{"*"})
+	handler := cors.Default().Handler(r)
 	fmt.Printf("Listening on port %s", PORT)
-	log.Fatal(http.ListenAndServe(":"+PORT, handlers.CORS(originsOK)(r)))
+	log.Fatal(http.ListenAndServe(":"+PORT, handler))
 }
 
 func login(w http.ResponseWriter, r *http.Request) {
@@ -50,26 +49,20 @@ func login(w http.ResponseWriter, r *http.Request) {
 	var auth Auth
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Println("SERVER ERROR:", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
+		errorResponse(w, http.StatusBadRequest, err, []byte{})
 		return
 	}
 	err = json.Unmarshal(body, &auth)
 	if err != nil {
-		log.Println("SERVER ERROR:", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Println("Yoooo")
+		errorResponse(w, http.StatusBadRequest, err, []byte{})
 		return
 	}
 	db, err := storm.Open("account.db")
 	if err != nil {
-		log.Println("SERVER ERROR:", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, err, []byte{})
 		return
 	}
-
 	defer db.Close()
 	err = db.One("Username", auth.Username, &user)
 	if err != nil {
@@ -77,9 +70,7 @@ func login(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		log.Println("SERVER ERROR:", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, err, []byte{})
 		return
 	}
 
@@ -106,14 +97,10 @@ func login(w http.ResponseWriter, r *http.Request) {
 
 	json, err := json.Marshal(response)
 	if err != nil {
-		log.Println("SERVER ERROR:", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, err, []byte{})
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(json)
+	successResponse(w, http.StatusOK, json)
 }
 
 func createUser(w http.ResponseWriter, r *http.Request) {
@@ -125,16 +112,10 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 		}{err.Error()}
 		json, err2 := json.Marshal(response)
 		if err2 != nil {
-			log.Printf("SERVER ERROR: %v\n", err2)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(json)
+			errorResponse(w, http.StatusInternalServerError, err2, []byte{})
 			return
 		}
-		log.Println("SERVER ERROR:", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(json)
+		errorResponse(w, http.StatusInternalServerError, err, json)
 		return
 	}
 	defer db.Close()
@@ -145,16 +126,10 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 		}{err.Error()}
 		json, err2 := json.Marshal(response)
 		if err2 != nil {
-			log.Printf("SERVER ERROR: %v\n", err2)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(json)
+			errorResponse(w, http.StatusInternalServerError, err2, json)
 			return
 		}
-		log.Printf("SERVER ERROR: %s\n", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(json)
+		errorResponse(w, http.StatusInternalServerError, err, json)
 		return
 	}
 
@@ -165,16 +140,10 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 		}{err.Error()}
 		json, err2 := json.Marshal(response)
 		if err2 != nil {
-			log.Printf("SERVER ERROR: %v\n", err2)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(json)
+			errorResponse(w, http.StatusInternalServerError, err2, []byte{})
 			return
 		}
-		log.Printf("SERVER ERROR: %s\n", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(json)
+		errorResponse(w, http.StatusBadRequest, err, json)
 		return
 	}
 
@@ -185,9 +154,7 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 		}{errString}
 		json, err2 := json.Marshal(response)
 		if err2 != nil {
-			log.Printf("SERVER ERROR: %v\n", err2)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
+			errorResponse(w, http.StatusInternalServerError, err2, []byte{})
 			return
 		}
 		log.Println("BAD REQUEST: ", errString)
@@ -199,9 +166,7 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 
 	hashedPassword, err := hashAndSaltPassword([]byte(accToAdd.Password))
 	if err != nil {
-		log.Printf("SERVER ERROR: %s\n", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
+		errorResponse(w, http.StatusInternalServerError, err, []byte{})
 		return
 	}
 	accToAdd.Password = hashedPassword
@@ -214,54 +179,19 @@ func createUser(w http.ResponseWriter, r *http.Request) {
 		}{err.Error()}
 		json, err2 := json.Marshal(response)
 		if err2 != nil {
-			log.Printf("SERVER ERROR: %v\n", err2)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write(json)
+			errorResponse(w, http.StatusInternalServerError, err2, []byte{})
 			return
 		}
-		log.Printf("SERVER ERROR: %v\n", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(json)
+		errorResponse(w, http.StatusInternalServerError, err, json)
 		return
 	}
 
 	json, err := json.Marshal(accToAdd)
 	if err != nil {
-		log.Printf("SERVER ERROR: %s\n", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write(json)
+		errorResponse(w, http.StatusInternalServerError, err, []byte{})
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(json)
-}
-
-// Serialize serializes an account for storage
-func (acc Account) Serialize() []byte {
-	var buffer bytes.Buffer
-
-	encoder := gob.NewEncoder(&buffer)
-	err := encoder.Encode(acc)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return buffer.Bytes()
-}
-
-// DeserializeAccount deserializes an account
-func DeserializeAccount(d []byte) Account {
-	var acc Account
-
-	decoder := gob.NewDecoder(bytes.NewReader(d))
-	err := decoder.Decode(&acc)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return acc
+	successResponse(w, http.StatusOK, json)
 }
 
 func hashAndSaltPassword(p []byte) (string, error) {
@@ -310,4 +240,19 @@ func checkForDataErrors(acc Account) string {
 	}
 
 	return ""
+}
+
+func errorResponse(w http.ResponseWriter, code int, err error, response []byte) {
+	log.Println("SERVER ERROR:", err)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	if len(response) > 0 {
+		w.Write(response)
+	}
+}
+
+func successResponse(w http.ResponseWriter, code int, response []byte) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	w.Write(response)
 }
