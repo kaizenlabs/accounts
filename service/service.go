@@ -3,46 +3,104 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 
+	"github.com/afex/hystrix-go/hystrix"
 	"github.com/asdine/storm"
+	"github.com/go-kit/kit/metrics"
+
 	"github.com/johnantonusmaximus/Accounts/service/types"
+	"github.com/johnantonusmaximus/go-common/src/errors"
 	"github.com/spf13/viper"
 	"golang.org/x/crypto/bcrypt"
 )
 
+// LoginService wraps the login service with latency and circuit metrics
+type LoginService struct {
+	requestCount   metrics.Counter
+	requestLatency metrics.Histogram
+	circuitStatus  metrics.Gauge
+	config         viper.Viper
+}
+
 // Service defines an Accounts service interface for Go-Kit
 type Service interface {
-	Login(ctx context.Context, req types.LoginEndpointRequest)
+	LoginUser(ctx context.Context, req types.LoginRequest)
 	CreateUser(w http.ResponseWriter, r *http.Request)
 	GetConfig() *viper.Viper
 }
 
+// LoginUser logs in a user
+func (l LoginService) LoginUser(ctx context.Context, req types.LoginRequest) (r types.LoginResponse, err error) {
+	if req.Auth.Username == "" || req.Auth.Password == "" {
+		return types.LoginResponse{}, errors.ErrMissingParametersReason.New("Username or password is missing")
+	}
+
+	LoginResponse, err := l.Login(ctx, req)
+
+	return LoginResponse, err
+}
+
 // Login logs in a user
-func Login(w http.ResponseWriter, r *http.Request) {
-	var user types.Account
-	var auth types.Auth
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		errorResponse(w, http.StatusBadRequest, err, []byte{})
-		return
+func (l LoginService) Login(ctx context.Context, req types.LoginRequest) (r types.LoginResponse, err error) {
+	output := make(chan bool, 1)
+	var loginResponse types.LoginResponse
+	errs := hystrix.Go("LoginUser", func() error {
+		loginResponse, err = l.GetUserDataFromDB(ctx, req)
+		if err != nil {
+			if sErr, ok := err.(*errors.Err); ok {
+				if sErr.GetCode() != 404 {
+					return sErr
+				}
+			} else {
+				return err
+			}
+		}
+		output <- true
+		return nil
+	}, nil)
+
+	select {
+	case out := <-output:
+		if out {
+			return loginResponse, err
+		}
+	case err := <-errs:
+		return loginResponse, err
 	}
-	err = json.Unmarshal(body, &auth)
-	if err != nil {
-		fmt.Println("Yoooo")
-		errorResponse(w, http.StatusBadRequest, err, []byte{})
-		return
-	}
+
+	return loginResponse, err
+
+}
+
+func (l LoginService) GetUserDataFromDB(ctx context.Context, req types.LoginRequest) (types.LoginResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "login_user")
+	defer span.Finish()
+	var err error 
+	var resp types.LoginResponse
+
+	defer func(begin time.Time) {
+		var code string 
+		if err != nil {
+			code = strconv.Itoa(CodeFrom(err))
+		} else {
+			code = "200"
+		}
+
+		p.requestCount.With("method", "LoginUser", "code", code, "granularity", "login_user").Add(1)
+		p.requestLatency.With("method", "LoginUser", "granularity", "login_user").Observe(time.Since(begin).Seconds())
+		p.circuitStatus.With("circuit_name", "LoginUser").Set(getCircuitStatus("LoginUser"))
+	}(time.Now())
+	
 	db, err := storm.Open("account.db")
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, err, []byte{})
 		return
 	}
 	defer db.Close()
-	err = db.One("Username", auth.Username, &user)
+	err = db.One("Username", req.Auth.Username, &resp)
 	if err != nil {
 		if err == storm.ErrNotFound {
 			w.WriteHeader(http.StatusUnauthorized)
@@ -72,6 +130,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	successResponse(w, http.StatusOK, json)
+}
 }
 
 // CreateUser creates a new user

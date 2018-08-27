@@ -1,5 +1,9 @@
 package types
 
+import (
+	"github.com/go-kit/kit/endpoint"
+)
+
 type LoginResponse struct {
 	FirstName     string
 	LastName      string
@@ -9,7 +13,8 @@ type LoginResponse struct {
 	AccountNumber string
 }
 
-type LoginEndpointRequest struct {
+type LoginRequest struct {
+	Auth Auth
 }
 
 // Account defines a user account
@@ -28,4 +33,10 @@ type Account struct {
 type Auth struct {
 	Username string
 	Password string
+}
+
+// Endpoints wraps all endpoints in a struct
+type Endpoints struct {
+	LoginEndpoint endpoint.Endpoint
+	CreateUser    endpoint.Endpoint
 }
