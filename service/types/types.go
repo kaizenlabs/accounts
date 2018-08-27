@@ -4,7 +4,7 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
-type LoginResponse struct {
+type AccountResponse struct {
 	FirstName     string
 	LastName      string
 	PhoneNumber   string
@@ -15,6 +15,10 @@ type LoginResponse struct {
 
 type LoginRequest struct {
 	Auth Auth
+}
+
+type CreateUserRequest struct {
+	Account Account
 }
 
 // Account defines a user account

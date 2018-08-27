@@ -2,14 +2,15 @@ package service
 
 import (
 	"context"
-	"encoding/json"
-	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/afex/hystrix-go/hystrix"
 	"github.com/asdine/storm"
 	"github.com/go-kit/kit/metrics"
+	opentracing "github.com/opentracing/opentracing-go"
 
 	"github.com/johnantonusmaximus/Accounts/service/types"
 	"github.com/johnantonusmaximus/go-common/src/errors"
@@ -17,8 +18,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// LoginService wraps the login service with latency and circuit metrics
-type LoginService struct {
+// AccountService wraps the login service with latency and circuit metrics
+type AccountService struct {
 	requestCount   metrics.Counter
 	requestLatency metrics.Histogram
 	circuitStatus  metrics.Gauge
@@ -27,28 +28,40 @@ type LoginService struct {
 
 // Service defines an Accounts service interface for Go-Kit
 type Service interface {
-	LoginUser(ctx context.Context, req types.LoginRequest)
-	CreateUser(w http.ResponseWriter, r *http.Request)
+	LoginUser(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error)
+	CreateUser(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error)
 	GetConfig() *viper.Viper
 }
 
 // LoginUser logs in a user
-func (l LoginService) LoginUser(ctx context.Context, req types.LoginRequest) (r types.LoginResponse, err error) {
+func (a AccountService) LoginUser(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error) {
 	if req.Auth.Username == "" || req.Auth.Password == "" {
-		return types.LoginResponse{}, errors.ErrMissingParametersReason.New("Username or password is missing")
+		return types.AccountResponse{}, errors.ErrMissingParametersReason.New("Username or password is missing")
 	}
 
-	LoginResponse, err := l.Login(ctx, req)
+	LoginResponse, err := a.Login(ctx, req)
 
 	return LoginResponse, err
 }
 
+// CreateUser creates a new user
+func (a AccountService) CreateUser(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error) {
+	if req.Account.AccountNumber == "" || req.Account.Company == "" || req.Account.FirstName == "" || req.Account.LastName == "" || req.Account.PhoneNumber == "" || req.Account.Username == "" {
+		return types.AccountResponse{}, errors.ErrMissingParametersReason.New("Missing parameters for account creation")
+	}
+
+	CreateUserResponse, err := a.CreateUser(ctx, req)
+
+	return CreateUserResponse, err
+}
+
 // Login logs in a user
-func (l LoginService) Login(ctx context.Context, req types.LoginRequest) (r types.LoginResponse, err error) {
+func (a AccountService) Login(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error) {
 	output := make(chan bool, 1)
-	var loginResponse types.LoginResponse
+	var err error
+	var loginResponse types.AccountResponse
 	errs := hystrix.Go("LoginUser", func() error {
-		loginResponse, err = l.GetUserDataFromDB(ctx, req)
+		loginResponse, err = a.GetUserDataFromDB(ctx, req)
 		if err != nil {
 			if sErr, ok := err.(*errors.Err); ok {
 				if sErr.GetCode() != 404 {
@@ -75,154 +88,87 @@ func (l LoginService) Login(ctx context.Context, req types.LoginRequest) (r type
 
 }
 
-func (l LoginService) GetUserDataFromDB(ctx context.Context, req types.LoginRequest) (types.LoginResponse, error) {
+// GetUserDataFromDB gets the user from the database
+func (a AccountService) GetUserDataFromDB(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "login_user")
 	defer span.Finish()
-	var err error 
-	var resp types.LoginResponse
-
+	var err error
+	var resp types.AccountResponse
+	var acc types.Account
 	defer func(begin time.Time) {
-		var code string 
+		var code string
 		if err != nil {
 			code = strconv.Itoa(CodeFrom(err))
 		} else {
 			code = "200"
 		}
 
-		p.requestCount.With("method", "LoginUser", "code", code, "granularity", "login_user").Add(1)
-		p.requestLatency.With("method", "LoginUser", "granularity", "login_user").Observe(time.Since(begin).Seconds())
-		p.circuitStatus.With("circuit_name", "LoginUser").Set(getCircuitStatus("LoginUser"))
+		a.requestCount.With("method", "LoginUser", "code", code, "granularity", "login_user").Add(1)
+		a.requestLatency.With("method", "LoginUser", "granularity", "login_user").Observe(time.Since(begin).Seconds())
+		a.circuitStatus.With("circuit_name", "LoginUser").Set(getCircuitStatus("LoginUser"))
 	}(time.Now())
-	
+
 	db, err := storm.Open("account.db")
 	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err, []byte{})
-		return
+		return resp, err
 	}
 	defer db.Close()
-	err = db.One("Username", req.Auth.Username, &resp)
+	err = db.One("Username", req.Auth.Username, &acc)
 	if err != nil {
-		if err == storm.ErrNotFound {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		errorResponse(w, http.StatusInternalServerError, err, []byte{})
-		return
+		return resp, err
 	}
 
-	err = comparePassword(user.Password, auth.Password)
+	err = comparePassword(acc.Password, req.Auth.Password)
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
+		return resp, err
 	}
-	response := types.LoginResponse{
-		FirstName:     user.FirstName,
-		LastName:      user.LastName,
-		PhoneNumber:   user.PhoneNumber,
-		Company:       user.Company,
-		Username:      user.Username,
-		AccountNumber: user.AccountNumber,
+	resp = types.AccountResponse{
+		FirstName:     acc.FirstName,
+		LastName:      acc.LastName,
+		PhoneNumber:   acc.PhoneNumber,
+		Company:       acc.Company,
+		Username:      acc.Username,
+		AccountNumber: acc.AccountNumber,
 	}
 
-	json, err := json.Marshal(response)
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err, []byte{})
-		return
-	}
-	successResponse(w, http.StatusOK, json)
-}
+	return resp, err
 }
 
 // CreateUser creates a new user
-func CreateUser(w http.ResponseWriter, r *http.Request) {
-	var accToAdd types.Account
+func CreateUser(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error) {
+	var resp types.AccountResponse
+	var err error
 	db, err := storm.Open("account.db")
 	if err != nil {
-		response := struct {
-			Error string
-		}{err.Error()}
-		json, err2 := json.Marshal(response)
-		if err2 != nil {
-			errorResponse(w, http.StatusInternalServerError, err2, []byte{})
-			return
-		}
-		errorResponse(w, http.StatusInternalServerError, err, json)
-		return
+		return resp, err
 	}
 	defer db.Close()
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		response := struct {
-			Error string
-		}{err.Error()}
-		json, err2 := json.Marshal(response)
-		if err2 != nil {
-			errorResponse(w, http.StatusInternalServerError, err2, json)
-			return
-		}
-		errorResponse(w, http.StatusInternalServerError, err, json)
-		return
-	}
 
-	err = json.Unmarshal(body, &accToAdd)
-	if err != nil {
-		response := struct {
-			Error string
-		}{err.Error()}
-		json, err2 := json.Marshal(response)
-		if err2 != nil {
-			errorResponse(w, http.StatusInternalServerError, err2, []byte{})
-			return
-		}
-		errorResponse(w, http.StatusBadRequest, err, json)
-		return
-	}
-
-	errString := checkForDataErrors(accToAdd)
+	errString := checkForDataErrors(req.Account)
 	if len(errString) > 0 {
-		response := struct {
-			Error string
-		}{errString}
-		json, err2 := json.Marshal(response)
-		if err2 != nil {
-			errorResponse(w, http.StatusInternalServerError, err2, []byte{})
-			return
-		}
-		log.Println("BAD REQUEST: ", errString)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(json)
-		return
+		return resp, err
 	}
 
-	hashedPassword, err := hashAndSaltPassword([]byte(accToAdd.Password))
+	hashedPassword, err := hashAndSaltPassword([]byte(req.Account.Password))
 	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err, []byte{})
-		return
+		return resp, err
 	}
-	accToAdd.Password = hashedPassword
-	accToAdd.ID = 0
+	req.Account.Password = hashedPassword
+	req.Account.ID = 0
 
-	err = db.Save(&accToAdd)
+	err = db.Save(&req)
 	if err != nil {
-		response := struct {
-			Error string
-		}{err.Error()}
-		json, err2 := json.Marshal(response)
-		if err2 != nil {
-			errorResponse(w, http.StatusInternalServerError, err2, []byte{})
-			return
-		}
-		errorResponse(w, http.StatusInternalServerError, err, json)
-		return
+		return resp, err
 	}
-
-	json, err := json.Marshal(accToAdd)
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err, []byte{})
-		return
+	resp = types.AccountResponse{
+		FirstName:     req.Account.FirstName,
+		LastName:      req.Account.LastName,
+		PhoneNumber:   req.Account.PhoneNumber,
+		Company:       req.Account.Company,
+		Username:      req.Account.Username,
+		AccountNumber: req.Account.AccountNumber,
 	}
-	successResponse(w, http.StatusOK, json)
+	return resp, err
 }
 
 func hashAndSaltPassword(p []byte) (string, error) {
