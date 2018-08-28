@@ -10,8 +10,8 @@ import (
 // MakeServerEndpoints creates the endpoints for the server's services
 func MakeServerEndpoints(s Service) types.Endpoints {
 	return types.Endpoints{
-		LoginEndpoint: MakeLoginEndpoint(s),
-		CreateUser:    MakeCreateUserEndpoint(s),
+		LoginEndpoint:      MakeLoginEndpoint(s),
+		CreateUserEndpoint: MakeCreateUserEndpoint(s),
 	}
 }
 

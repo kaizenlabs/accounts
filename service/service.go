@@ -19,11 +19,17 @@ import (
 )
 
 // AccountService wraps the login service with latency and circuit metrics
-type AccountService struct {
+type accountService struct {
 	requestCount   metrics.Counter
 	requestLatency metrics.Histogram
 	circuitStatus  metrics.Gauge
 	config         viper.Viper
+}
+
+// AccountService instantiates the Account service with counters, latency, metrics, and circuit status
+func AccountService(requestCount metrics.Counter, requestLatency metrics.Histogram, circuitStatus metrics.Gauge) Service {
+	config := InitConfig("./conf")
+	return &accountService{requestCount, requestLatency, circuitStatus, *config}
 }
 
 // Service defines an Accounts service interface for Go-Kit
@@ -33,8 +39,12 @@ type Service interface {
 	GetConfig() *viper.Viper
 }
 
+func (a accountService) GetConfig() *viper.Viper {
+	return &a.config
+}
+
 // LoginUser logs in a user
-func (a AccountService) LoginUser(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error) {
+func (a accountService) LoginUser(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error) {
 	if req.Auth.Username == "" || req.Auth.Password == "" {
 		return types.AccountResponse{}, errors.ErrMissingParametersReason.New("Username or password is missing")
 	}
@@ -45,7 +55,7 @@ func (a AccountService) LoginUser(ctx context.Context, req types.LoginRequest) (
 }
 
 // CreateUser creates a new user
-func (a AccountService) CreateUser(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error) {
+func (a accountService) CreateUser(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error) {
 	if req.Account.AccountNumber == "" || req.Account.Company == "" || req.Account.FirstName == "" || req.Account.LastName == "" || req.Account.PhoneNumber == "" || req.Account.Username == "" {
 		return types.AccountResponse{}, errors.ErrMissingParametersReason.New("Missing parameters for account creation")
 	}
@@ -56,7 +66,7 @@ func (a AccountService) CreateUser(ctx context.Context, req types.CreateUserRequ
 }
 
 // Login logs in a user
-func (a AccountService) Login(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error) {
+func (a accountService) Login(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error) {
 	output := make(chan bool, 1)
 	var err error
 	var loginResponse types.AccountResponse
@@ -89,7 +99,7 @@ func (a AccountService) Login(ctx context.Context, req types.LoginRequest) (type
 }
 
 // GetUserDataFromDB gets the user from the database
-func (a AccountService) GetUserDataFromDB(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error) {
+func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "login_user")
 	defer span.Finish()
 	var err error

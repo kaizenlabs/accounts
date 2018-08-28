@@ -41,6 +41,6 @@ type Auth struct {
 
 // Endpoints wraps all endpoints in a struct
 type Endpoints struct {
-	LoginEndpoint endpoint.Endpoint
-	CreateUser    endpoint.Endpoint
+	LoginEndpoint      endpoint.Endpoint
+	CreateUserEndpoint endpoint.Endpoint
 }

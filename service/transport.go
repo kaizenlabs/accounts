@@ -5,15 +5,77 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
+	httpprof "net/http/pprof"
+	"os"
 
+	"github.com/go-kit/kit/log"
+	opentracing "github.com/go-kit/kit/tracing/opentracing"
+	httptransport "github.com/go-kit/kit/transport/http"
+	"github.com/gorilla/mux"
 	"github.com/johnantonusmaximus/Accounts/service/types"
 	"github.com/johnantonusmaximus/go-common/src/errors"
+	stdopentracing "github.com/opentracing/opentracing-go"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// MakeHTTPHandler creates the handler for decoding and encoding HTTP responses as well as handling routing via Gorilla Mux Router
+// Mounts all service endpoitns into a single http.Handler
 func MakeHTTPHandler(ctx context.Context, s Service, tracer stdopentracing.Tracer, logger log.Logger) http.Handler {
+	r := mux.NewRouter()
+	contextPath := os.Getenv("CONTEXT_PATH")
+	sub := r
+	if contextPath != "" {
+		sub = r.PathPrefix(contextPath).Subrouter()
+	}
+	if s.GetConfig().GetBool("swagger") {
+		path := "/asset"
+		if s.GetConfig().GetString("ENV") == "" {
+			path = "." + path
+		}
 
+		prefix := contextPath + "swagger-ui/"
+		if contextPath == "" {
+			prefix = "/swagger-ui/"
+		}
+		sub.PathPrefix("/swagger-ui/").Handler(http.StripPrefix(prefix, http.FileServer(http.Dir(path))))
+
+	}
+	e := MakeServerEndpoints(s)
+
+	options := []httptransport.ServerOption{
+		httptransport.ServerErrorLogger(logger),
+		httptransport.ServerErrorEncoder(encodeError),
+	}
+
+	sub.Methods("POST").Path("/v1/login").Handler(httptransport.NewServer(
+		e.LoginEndpoint,
+		decodeLoginUser,
+		encodeResponse,
+		append(options, httptransport.ServerBefore(opentracing.HTTPToContext(tracer, "LoginUser", logger)))...,
+	))
+
+	sub.Methods("POST").Path("/v1/create-user").Handler(httptransport.NewServer(
+		e.CreateUserEndpoint,
+		decodeCreateUser,
+		encodeResponse,
+		append(options, httptransport.ServerBefore(opentracing.HTTPToContext(tracer, "CreateUser", logger)))...,
+	))
+
+	sub.HandleFunc("/debug/pprof/", httpprof.Index)
+	sub.HandleFunc("/debug/pprof/cmdline", httpprof.Cmdline)
+	sub.HandleFunc("/debug/pprof/profile", httpprof.Profile)
+	sub.HandleFunc("/debug/pprof/symbol", httpprof.Symbol)
+	sub.HandleFunc("/debug/pprof/trace", httpprof.Trace)
+	sub.Handle("/debug/pprof/goroutine", httpprof.Handler("goroutine"))
+	sub.Handle("/debug/pprof/heap", httpprof.Handler("heap"))
+	sub.Handle("/debug/pprof/threadcreate", httpprof.Handler("threadcreate"))
+	sub.Handle("/debug/pprof/block", httpprof.Handler("block"))
+	sub.Handle("/metrics", promhttp.HandlerFor(stdprometheus.DefaultGatherer, promhttp.HandlerOpts{}))
+	sub.HandleFunc("/health", HealthCheckHandler)
+	//originsOK := handlers.AllowedOrigins([]string{"*"})
+	return sub
 }
 
 type errorer interface {
