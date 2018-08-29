@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -72,6 +73,7 @@ func (a accountService) Login(ctx context.Context, req types.LoginRequest) (type
 	var loginResponse types.AccountResponse
 	errs := hystrix.Go("LoginUser", func() error {
 		loginResponse, err = a.GetUserDataFromDB(ctx, req)
+		fmt.Printf("Err: %s", err)
 		if err != nil {
 			if sErr, ok := err.(*errors.Err); ok {
 				if sErr.GetCode() != 404 {
@@ -156,6 +158,7 @@ func CreateUser(ctx context.Context, req types.CreateUserRequest) (types.Account
 
 	errString := checkForDataErrors(req.Account)
 	if len(errString) > 0 {
+		fmt.Println("Error returned!")
 		return resp, err
 	}
 

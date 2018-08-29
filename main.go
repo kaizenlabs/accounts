@@ -47,7 +47,7 @@ func main() {
 	}
 	stdopentracing.SetGlobalTracer(tracer)
 	var (
-		httpAddr = flag.String("http.addr", ":8080", "HTTP listen address")
+		httpAddr = flag.String("http.addr", ":"+PORT, "HTTP listen address")
 	)
 	flag.Parse()
 
@@ -64,20 +64,21 @@ func main() {
 	}
 
 	requestCounter := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
-		Namespace: "accounts-api",
+		Namespace: "api",
 		Name:      "request",
 		Help:      "Number of requests received.",
 	}, []string{"method", "code", "granularity"})
 
 	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
-		Namespace: "accounts-api",
+		Namespace: "api",
 		Name:      "request_latency_seconds",
 		Help:      "Total duration of request in seconds.",
 	}, []string{"method", "granularity"})
 
 	circuitStatus := kitprometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
-		Namespace: "accounts-api",
+		Namespace: "api",
 		Name:      "circuit_status",
+		Help:      "Current Hystrix circuit status.",
 	}, []string{"circuit_name"})
 
 	var s service.Service

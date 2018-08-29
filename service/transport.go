@@ -135,14 +135,34 @@ func decodeLoginUser(_ context.Context, r *http.Request) (request interface{}, e
 }
 
 func encodeError(_ context.Context, err error, w http.ResponseWriter) {
-	if err != nil {
+	if err == nil {
 		panic("encodeError with nil error")
 	}
-	w.Header().Set("Context-Type", "application/json; charset=utf-8")
-	w.WriteHeader(CodeFrom(err))
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"error": err.Error(),
-	})
+	if CodeFrom(err) == 500 && err.Error() == "crypto/bcrypt: hashedPassword is not the hash of the given password" {
+		w.Header().Set("Context-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "Unauthorized",
+		})
+	} else if CodeFrom(err) == 500 && err.Error() == "not found" {
+		w.Header().Set("Context-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "Unauthorized",
+		})
+	} else if CodeFrom(err) == 400 && err.Error() == "Missing parameters: Username or password is missing" {
+		w.Header().Set("Context-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": err.Error(),
+		})
+	} else {
+		w.Header().Set("Context-Type", "application/json; charset=utf-8")
+		w.WriteHeader(CodeFrom(err))
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "Bad Request",
+		})
+	}
 }
 
 // CodeFrom gets the code from the response
