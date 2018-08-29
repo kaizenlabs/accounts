@@ -18,6 +18,7 @@ import (
 	stdopentracing "github.com/opentracing/opentracing-go"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rs/cors"
 )
 
 // MakeHTTPHandler creates the handler for decoding and encoding HTTP responses as well as handling routing via Gorilla Mux Router
@@ -74,8 +75,9 @@ func MakeHTTPHandler(ctx context.Context, s Service, tracer stdopentracing.Trace
 	sub.Handle("/debug/pprof/block", httpprof.Handler("block"))
 	sub.Handle("/metrics", promhttp.HandlerFor(stdprometheus.DefaultGatherer, promhttp.HandlerOpts{}))
 	sub.HandleFunc("/health", HealthCheckHandler)
+	handler := cors.Default().Handler(sub)
 	//originsOK := handlers.AllowedOrigins([]string{"*"})
-	return sub
+	return handler
 }
 
 type errorer interface {
