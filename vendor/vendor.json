@@ -71,42 +71,6 @@
 			"revisionTime": "2017-09-24T15:46:27Z"
 		},
 		{
-			"checksumSHA1": "203+irJgy8JuQ66lCQXIFyhEe6A=",
-			"path": "github.com/asdine/storm",
-			"revision": "24df4bc58683c26e497520527d0ee5bf9e475a03",
-			"revisionTime": "2018-02-25T12:09:36Z"
-		},
-		{
-			"checksumSHA1": "KXHP3AdJVnDxab4J2mDknFi8SPQ=",
-			"path": "github.com/asdine/storm/codec",
-			"revision": "24df4bc58683c26e497520527d0ee5bf9e475a03",
-			"revisionTime": "2018-02-25T12:09:36Z"
-		},
-		{
-			"checksumSHA1": "8B9a1JXYnmmzo353mN/z9MgKa2M=",
-			"path": "github.com/asdine/storm/codec/json",
-			"revision": "24df4bc58683c26e497520527d0ee5bf9e475a03",
-			"revisionTime": "2018-02-25T12:09:36Z"
-		},
-		{
-			"checksumSHA1": "UohCA0ZSk6DO4wYTORS0NE58j1w=",
-			"path": "github.com/asdine/storm/index",
-			"revision": "24df4bc58683c26e497520527d0ee5bf9e475a03",
-			"revisionTime": "2018-02-25T12:09:36Z"
-		},
-		{
-			"checksumSHA1": "9EciDShF1A0nvE8x6FRw5Re9kzo=",
-			"path": "github.com/asdine/storm/internal",
-			"revision": "24df4bc58683c26e497520527d0ee5bf9e475a03",
-			"revisionTime": "2018-02-25T12:09:36Z"
-		},
-		{
-			"checksumSHA1": "xMrnqVXOk2L7vjtsMYfE73n+tKM=",
-			"path": "github.com/asdine/storm/q",
-			"revision": "24df4bc58683c26e497520527d0ee5bf9e475a03",
-			"revisionTime": "2018-02-25T12:09:36Z"
-		},
-		{
 			"checksumSHA1": "spyv5/YFBjYyZLZa1U2LBfDR8PM=",
 			"path": "github.com/beorn7/perks/quantile",
 			"revision": "4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9",

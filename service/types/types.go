@@ -27,10 +27,10 @@ type Account struct {
 	FirstName     string `json:"firstName"`
 	LastName      string `json:"lastName"`
 	PhoneNumber   string `json:"phoneNumber"`
-	Company       string `json:"company" storm:"index"`
-	Username      string `json:"username" storm:"unique"`
+	Company       string `json:"company"`
+	Username      string `json:"username"`
 	Password      string `json:"password"`
-	AccountNumber string `json:"accountNumber" storm:"index"`
+	AccountNumber string `json:"accountNumber"`
 }
 
 // Auth represent an authentication request

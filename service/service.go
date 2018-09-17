@@ -79,7 +79,6 @@ func (a accountService) Login(ctx context.Context, req types.LoginRequest) (type
 	var loginResponse types.AccountResponse
 	errs := hystrix.Go("LoginUser", func() error {
 		loginResponse, err = a.GetUserDataFromDB(ctx, req)
-		fmt.Printf("Err: %s", err)
 		if err != nil {
 			if sErr, ok := err.(*errors.Err); ok {
 				if sErr.GetCode() != 404 {
@@ -113,7 +112,6 @@ func (a accountService) CreateUser(ctx context.Context, req types.CreateUserRequ
 	var createUserResponse types.AccountResponse
 	errs := hystrix.Go("CreateUser", func() error {
 		err = a.CheckForUserInDB(ctx, req)
-		fmt.Printf("Err: %s", err)
 		if err != nil {
 			if sErr, ok := err.(*errors.Err); ok {
 				if sErr.GetCode() != 404 {
@@ -124,7 +122,6 @@ func (a accountService) CreateUser(ctx context.Context, req types.CreateUserRequ
 			}
 		}
 		createUserResponse, err = a.CreateUserInDB(ctx, req)
-		fmt.Printf("Err: %s", err)
 		if err != nil {
 			if sErr, ok := err.(*errors.Err); ok {
 				if sErr.GetCode() != 404 {
@@ -170,8 +167,6 @@ func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRe
 		a.circuitStatus.With("circuit_name", "LoginUser").Set(getCircuitStatus("LoginUser"))
 	}(time.Now())
 
-	// Datastore query here
-	fmt.Println("REQ.USERNAME=", req.Auth.Username)
 	key := datastore.NameKey("Account", req.Auth.Username, nil)
 	acc := new(types.Account)
 	if err = a.client.Get(ctx, key, acc); err != nil {
