@@ -18,12 +18,12 @@ type LoginRequest struct {
 }
 
 type CreateUserRequest struct {
+	Auth    Auth
 	Account Account
 }
 
 // Account defines a user account
 type Account struct {
-	ID            int    `storm:"id,increment=100"`
 	FirstName     string `json:"firstName"`
 	LastName      string `json:"lastName"`
 	PhoneNumber   string `json:"phoneNumber"`

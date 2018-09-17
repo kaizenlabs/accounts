@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
+	datastore "cloud.google.com/go/datastore"
 	"github.com/afex/hystrix-go/hystrix"
-	"github.com/asdine/storm"
 	"github.com/go-kit/kit/metrics"
 	opentracing "github.com/opentracing/opentracing-go"
 
@@ -25,18 +25,24 @@ type accountService struct {
 	requestLatency metrics.Histogram
 	circuitStatus  metrics.Gauge
 	config         viper.Viper
+	client         *datastore.Client
 }
 
 // AccountService instantiates the Account service with counters, latency, metrics, and circuit status
 func AccountService(requestCount metrics.Counter, requestLatency metrics.Histogram, circuitStatus metrics.Gauge) Service {
 	config := InitConfig("./conf")
-	return &accountService{requestCount, requestLatency, circuitStatus, *config}
+	ctx := context.Background()
+	client, err := datastore.NewClient(ctx, config.GetString("PROJECT_ID"))
+	if err != nil {
+		log.Fatal("Error creating datastore client: ", err)
+	}
+	return &accountService{requestCount, requestLatency, circuitStatus, *config, client}
 }
 
 // Service defines an Accounts service interface for Go-Kit
 type Service interface {
-	LoginUser(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error)
-	CreateUser(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error)
+	LoginUserService(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error)
+	CreateUserService(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error)
 	GetConfig() *viper.Viper
 }
 
@@ -45,7 +51,7 @@ func (a accountService) GetConfig() *viper.Viper {
 }
 
 // LoginUser logs in a user
-func (a accountService) LoginUser(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error) {
+func (a accountService) LoginUserService(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error) {
 	if req.Auth.Username == "" || req.Auth.Password == "" {
 		return types.AccountResponse{}, errors.ErrMissingParametersReason.New("Username or password is missing")
 	}
@@ -56,7 +62,7 @@ func (a accountService) LoginUser(ctx context.Context, req types.LoginRequest) (
 }
 
 // CreateUser creates a new user
-func (a accountService) CreateUser(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error) {
+func (a accountService) CreateUserService(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error) {
 	if req.Account.AccountNumber == "" || req.Account.Company == "" || req.Account.FirstName == "" || req.Account.LastName == "" || req.Account.PhoneNumber == "" || req.Account.Username == "" {
 		return types.AccountResponse{}, errors.ErrMissingParametersReason.New("Missing parameters for account creation")
 	}
@@ -100,13 +106,57 @@ func (a accountService) Login(ctx context.Context, req types.LoginRequest) (type
 
 }
 
+// Login logs in a user
+func (a accountService) CreateUser(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error) {
+	output := make(chan bool, 1)
+	var err error
+	var createUserResponse types.AccountResponse
+	errs := hystrix.Go("CreateUser", func() error {
+		err = a.CheckForUserInDB(ctx, req)
+		fmt.Printf("Err: %s", err)
+		if err != nil {
+			if sErr, ok := err.(*errors.Err); ok {
+				if sErr.GetCode() != 404 {
+					return sErr
+				}
+			} else {
+				return err
+			}
+		}
+		createUserResponse, err = a.CreateUserInDB(ctx, req)
+		fmt.Printf("Err: %s", err)
+		if err != nil {
+			if sErr, ok := err.(*errors.Err); ok {
+				if sErr.GetCode() != 404 {
+					return sErr
+				}
+			} else {
+				return err
+			}
+		}
+		output <- true
+		return nil
+	}, nil)
+
+	select {
+	case out := <-output:
+		if out {
+			return createUserResponse, err
+		}
+	case err := <-errs:
+		return createUserResponse, err
+	}
+
+	return createUserResponse, err
+
+}
+
 // GetUserDataFromDB gets the user from the database
 func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "login_user")
 	defer span.Finish()
 	var err error
 	var resp types.AccountResponse
-	var acc types.Account
 	defer func(begin time.Time) {
 		var code string
 		if err != nil {
@@ -120,13 +170,11 @@ func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRe
 		a.circuitStatus.With("circuit_name", "LoginUser").Set(getCircuitStatus("LoginUser"))
 	}(time.Now())
 
-	db, err := storm.Open("account.db")
-	if err != nil {
-		return resp, err
-	}
-	defer db.Close()
-	err = db.One("Username", req.Auth.Username, &acc)
-	if err != nil {
+	// Datastore query here
+	fmt.Println("REQ.USERNAME=", req.Auth.Username)
+	key := datastore.NameKey("Account", req.Auth.Username, nil)
+	acc := new(types.Account)
+	if err = a.client.Get(ctx, key, acc); err != nil {
 		return resp, err
 	}
 
@@ -146,15 +194,51 @@ func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRe
 	return resp, err
 }
 
-// CreateUser creates a new user
-func CreateUser(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error) {
-	var resp types.AccountResponse
+// GetUserDataFromDB gets the user from the database
+func (a accountService) CheckForUserInDB(ctx context.Context, req types.CreateUserRequest) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "check_for_user")
+	defer span.Finish()
 	var err error
-	db, err := storm.Open("account.db")
-	if err != nil {
-		return resp, err
+	defer func(begin time.Time) {
+		var code string
+		if err != nil {
+			code = strconv.Itoa(CodeFrom(err))
+		} else {
+			code = "200"
+		}
+
+		a.requestCount.With("method", "LoginUser", "code", code, "granularity", "check_for_user").Add(1)
+		a.requestLatency.With("method", "LoginUser", "granularity", "check_for_user").Observe(time.Since(begin).Seconds())
+		a.circuitStatus.With("circuit_name", "CreateUser").Set(getCircuitStatus("createUser"))
+	}(time.Now())
+
+	// Datastore query here
+	key := datastore.NameKey("Account", req.Account.Username, nil)
+	acc := new(types.Account)
+	if err = a.client.Get(ctx, key, acc); err == nil {
+		return errors.ErrDuplicate
 	}
-	defer db.Close()
+	return nil
+}
+
+// CreateUser creates a new user
+func (a accountService) CreateUserInDB(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "login_user")
+	defer span.Finish()
+	var err error
+	var resp types.AccountResponse
+	defer func(begin time.Time) {
+		var code string
+		if err != nil {
+			code = strconv.Itoa(CodeFrom(err))
+		} else {
+			code = "200"
+		}
+
+		a.requestCount.With("method", "CreateUser", "code", code, "granularity", "create_user").Add(1)
+		a.requestLatency.With("method", "CreateUser", "granularity", "create_user").Observe(time.Since(begin).Seconds())
+		a.circuitStatus.With("circuit_name", "CreateUser").Set(getCircuitStatus("CreateUser"))
+	}(time.Now())
 
 	errString := checkForDataErrors(req.Account)
 	if len(errString) > 0 {
@@ -167,12 +251,14 @@ func CreateUser(ctx context.Context, req types.CreateUserRequest) (types.Account
 		return resp, err
 	}
 	req.Account.Password = hashedPassword
-	req.Account.ID = 0
+	accPtr := &req.Account
 
-	err = db.Save(&req)
+	newKey := datastore.NameKey("Account", req.Account.Username, nil)
+	_, err = a.client.Put(ctx, newKey, accPtr)
 	if err != nil {
 		return resp, err
 	}
+
 	resp = types.AccountResponse{
 		FirstName:     req.Account.FirstName,
 		LastName:      req.Account.LastName,

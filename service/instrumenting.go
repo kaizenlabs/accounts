@@ -25,7 +25,7 @@ func InstrumentingMiddleware(requestCount metrics.Counter, requestLatency metric
 	}
 }
 
-func (m *instrumentingMiddleware) LoginUser(ctx context.Context, req types.LoginRequest) (r types.AccountResponse, err error) {
+func (m *instrumentingMiddleware) LoginUserService(ctx context.Context, req types.LoginRequest) (r types.AccountResponse, err error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "LoginUser")
 	defer span.Finish()
 	span.LogFields(
@@ -49,11 +49,11 @@ func (m *instrumentingMiddleware) LoginUser(ctx context.Context, req types.Login
 		span.SetTag("error", err.Error())
 	}
 
-	r, err = m.next.LoginUser(ctx, req)
+	r, err = m.next.LoginUserService(ctx, req)
 	return r, err
 }
 
-func (m *instrumentingMiddleware) CreateUser(ctx context.Context, req types.CreateUserRequest) (r types.AccountResponse, err error) {
+func (m *instrumentingMiddleware) CreateUserService(ctx context.Context, req types.CreateUserRequest) (r types.AccountResponse, err error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "CreateUser")
 	defer span.Finish()
 	span.LogFields(
@@ -76,7 +76,7 @@ func (m *instrumentingMiddleware) CreateUser(ctx context.Context, req types.Crea
 	if err != nil {
 		span.SetTag("error", err.Error())
 	}
-	r, err = m.next.CreateUser(ctx, req)
+	r, err = m.next.CreateUserService(ctx, req)
 	return r, err
 }
 

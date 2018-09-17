@@ -19,7 +19,7 @@ func MakeServerEndpoints(s Service) types.Endpoints {
 func MakeLoginEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(types.LoginRequest)
-		r, e := s.LoginUser(ctx, req)
+		r, e := s.LoginUserService(ctx, req)
 		return &getAccountResponse{r}, e
 	}
 }
@@ -28,7 +28,7 @@ func MakeLoginEndpoint(s Service) endpoint.Endpoint {
 func MakeCreateUserEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(types.CreateUserRequest)
-		r, e := s.CreateUser(ctx, req)
+		r, e := s.CreateUserService(ctx, req)
 		return &getAccountResponse{r}, e
 	}
 }

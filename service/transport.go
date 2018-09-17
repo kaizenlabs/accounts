@@ -112,7 +112,6 @@ func decodeCreateUser(_ context.Context, r *http.Request) (request interface{}, 
 	if err != nil {
 		return types.AccountResponse{}, err
 	}
-	acc.ID = 0
 
 	return types.CreateUserRequest{
 		Account: acc,
@@ -146,7 +145,13 @@ func encodeError(_ context.Context, err error, w http.ResponseWriter) {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"error": "Unauthorized",
 		})
-	} else if CodeFrom(err) == 500 && err.Error() == "not found" {
+	} else if CodeFrom(err) == 500 && err.Error() == "datastore: no such entity" {
+		w.Header().Set("Context-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error": "Unauthorized",
+		})
+	} else if CodeFrom(err) == 500 && err.Error() == "Duplicate value" {
 		w.Header().Set("Context-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(map[string]interface{}{
