@@ -1,258 +1,122 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
+	"flag"
 	"fmt"
-	"io/ioutil"
-	"log"
+
+	"net"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
-	"github.com/asdine/storm"
-	"github.com/gorilla/mux"
-	"github.com/rs/cors"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/afex/hystrix-go/hystrix"
+	"github.com/go-kit/kit/log"
+	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
+	"github.com/johnantonusmaximus/Accounts/service"
+	stdopentracing "github.com/opentracing/opentracing-go"
+	zipkin "github.com/openzipkin/zipkin-go-opentracing"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 )
-
-// Account defines a user account
-type Account struct {
-	ID            int    `storm:"id,increment=100"`
-	FirstName     string `json:"firstName"`
-	LastName      string `json:"lastName"`
-	PhoneNumber   string `json:"phoneNumber"`
-	Company       string `json:"company" storm:"index"`
-	Username      string `json:"username" storm:"unique"`
-	Password      string `json:"password"`
-	AccountNumber string `json:"accountNumber" storm:"index"`
-}
-
-// Auth represent an authentication request
-type Auth struct {
-	Username string
-	Password string
-}
 
 // PORT is the port for the server
 const PORT string = "3002"
 
 func main() {
-	r := mux.NewRouter()
-	r.HandleFunc("/login", login).Methods("POST") // GET will be handles by React app
-	r.HandleFunc("/create-user", createUser).Methods("POST")
-	//originsOK := handlers.AllowedOrigins([]string{"*"})
-	handler := cors.Default().Handler(r)
-	fmt.Printf("Listening on port %s", PORT)
-	log.Fatal(http.ListenAndServe(":"+PORT, handler))
-}
-
-func login(w http.ResponseWriter, r *http.Request) {
-	var user Account
-	var auth Auth
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		errorResponse(w, http.StatusBadRequest, err, []byte{})
-		return
-	}
-	err = json.Unmarshal(body, &auth)
-	if err != nil {
-		fmt.Println("Yoooo")
-		errorResponse(w, http.StatusBadRequest, err, []byte{})
-		return
-	}
-	db, err := storm.Open("account.db")
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err, []byte{})
-		return
-	}
-	defer db.Close()
-	err = db.One("Username", auth.Username, &user)
-	if err != nil {
-		if err == storm.ErrNotFound {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
+	var tracer stdopentracing.Tracer
+	{
+		const zipkinHTTPEndpoint = "http://zipkin-svc.monitoring:9411/api/v1/spans"
+		collector, err := zipkin.NewHTTPCollector(zipkinHTTPEndpoint)
+		debug := false
+		if err != nil {
+			fmt.Printf("Unable to create Zipkin HTTP collector: %+v", err)
+			os.Exit(-1)
 		}
-		errorResponse(w, http.StatusInternalServerError, err, []byte{})
-		return
-	}
-
-	err = comparePassword(user.Password, auth.Password)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-	response := struct {
-		FirstName     string
-		LastName      string
-		PhoneNumber   string
-		Company       string
-		Username      string
-		AccountNumber string
-	}{
-		user.FirstName,
-		user.LastName,
-		user.PhoneNumber,
-		user.Company,
-		user.Username,
-		user.AccountNumber,
-	}
-
-	json, err := json.Marshal(response)
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err, []byte{})
-		return
-	}
-	successResponse(w, http.StatusOK, json)
-}
-
-func createUser(w http.ResponseWriter, r *http.Request) {
-	var accToAdd Account
-	db, err := storm.Open("account.db")
-	if err != nil {
-		response := struct {
-			Error string
-		}{err.Error()}
-		json, err2 := json.Marshal(response)
-		if err2 != nil {
-			errorResponse(w, http.StatusInternalServerError, err2, []byte{})
-			return
+		hostname := os.Getenv("HOSTNAME")
+		recorder := zipkin.NewRecorder(collector, debug, hostname, "Accounts")
+		tracer, err = zipkin.NewTracer(
+			recorder,
+			zipkin.ClientServerSameSpan(true),
+			zipkin.TraceID128Bit(true),
+		)
+		if err != nil {
+			fmt.Printf("Unable to create Zipkin tracer: %+v", err)
+			os.Exit(-1)
 		}
-		errorResponse(w, http.StatusInternalServerError, err, json)
-		return
 	}
-	defer db.Close()
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		response := struct {
-			Error string
-		}{err.Error()}
-		json, err2 := json.Marshal(response)
-		if err2 != nil {
-			errorResponse(w, http.StatusInternalServerError, err2, json)
-			return
-		}
-		errorResponse(w, http.StatusInternalServerError, err, json)
-		return
+	stdopentracing.SetGlobalTracer(tracer)
+	var (
+		httpAddr = flag.String("http.addr", ":"+PORT, "HTTP listen address")
+	)
+	flag.Parse()
+
+	var logger log.Logger
+	{
+		logger = log.NewLogfmtLogger(os.Stderr)
+		logger = log.With(logger, "ts", log.DefaultTimestampUTC)
+		logger = log.With(logger, "caller", log.DefaultCaller)
 	}
 
-	err = json.Unmarshal(body, &accToAdd)
-	if err != nil {
-		response := struct {
-			Error string
-		}{err.Error()}
-		json, err2 := json.Marshal(response)
-		if err2 != nil {
-			errorResponse(w, http.StatusInternalServerError, err2, []byte{})
-			return
-		}
-		errorResponse(w, http.StatusBadRequest, err, json)
-		return
+	var ctx context.Context
+	{
+		ctx = context.Background()
 	}
 
-	errString := checkForDataErrors(accToAdd)
-	if len(errString) > 0 {
-		response := struct {
-			Error string
-		}{errString}
-		json, err2 := json.Marshal(response)
-		if err2 != nil {
-			errorResponse(w, http.StatusInternalServerError, err2, []byte{})
-			return
-		}
-		log.Println("BAD REQUEST: ", errString)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write(json)
-		return
+	requestCounter := kitprometheus.NewCounterFrom(stdprometheus.CounterOpts{
+		Namespace: "api",
+		Name:      "request",
+		Help:      "Number of requests received.",
+	}, []string{"method", "code", "granularity"})
+
+	requestLatency := kitprometheus.NewSummaryFrom(stdprometheus.SummaryOpts{
+		Namespace: "api",
+		Name:      "request_latency_seconds",
+		Help:      "Total duration of request in seconds.",
+	}, []string{"method", "granularity"})
+
+	circuitStatus := kitprometheus.NewGaugeFrom(stdprometheus.GaugeOpts{
+		Namespace: "api",
+		Name:      "circuit_status",
+		Help:      "Current Hystrix circuit status.",
+	}, []string{"circuit_name"})
+
+	var s service.Service
+	{
+		s = service.AccountService(requestCounter, requestLatency, circuitStatus)
+		s = service.LoggingMiddleware(logger)(s)
+		s = service.InstrumentingMiddleware(requestCounter, requestLatency, circuitStatus)(s)
 	}
 
-	hashedPassword, err := hashAndSaltPassword([]byte(accToAdd.Password))
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err, []byte{})
-		return
-	}
-	accToAdd.Password = hashedPassword
-	accToAdd.ID = 0
-
-	err = db.Save(&accToAdd)
-	if err != nil {
-		response := struct {
-			Error string
-		}{err.Error()}
-		json, err2 := json.Marshal(response)
-		if err2 != nil {
-			errorResponse(w, http.StatusInternalServerError, err2, []byte{})
-			return
-		}
-		errorResponse(w, http.StatusInternalServerError, err, json)
-		return
+	var h http.Handler
+	{
+		h = service.MakeHTTPHandler(ctx, s, tracer, log.With(logger, "component", "HTTP"))
 	}
 
-	json, err := json.Marshal(accToAdd)
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err, []byte{})
-		return
-	}
-	successResponse(w, http.StatusOK, json)
-}
+	errs := make(chan error)
+	go func() {
+		c := make(chan os.Signal)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		errs <- fmt.Errorf("%s", <-c)
+	}()
 
-func hashAndSaltPassword(p []byte) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword(p, bcrypt.MinCost)
-	if err != nil {
-		return "", err
-	}
-	return string(hash), nil
-}
+	go func() {
+		hystrix.ConfigureCommand("LoginUser", hystrix.CommandConfig{
+			Timeout:               s.GetConfig().GetInt("baseTimeout"),
+			MaxConcurrentRequests: 100,
+			ErrorPercentThreshold: 25,
+		})
+		hystrix.ConfigureCommand("CreateUser", hystrix.CommandConfig{
+			Timeout:               s.GetConfig().GetInt("baseTimeout"),
+			MaxConcurrentRequests: 100,
+			ErrorPercentThreshold: 25,
+		})
+		hystrixStreamHandler := hystrix.NewStreamHandler()
+		hystrixStreamHandler.Start()
+		go http.ListenAndServe(net.JoinHostPort("", PORT), hystrixStreamHandler)
+		logger.Log("transport", "HTTP", "addr", *httpAddr)
+		errs <- http.ListenAndServe(*httpAddr, h)
+	}()
 
-func comparePassword(hashedPassword string, plainPwd string) error {
-	hashBytes := []byte(hashedPassword)
-	hashAttempt := []byte(plainPwd)
-
-	err := bcrypt.CompareHashAndPassword(hashBytes, hashAttempt)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func checkForDataErrors(acc Account) string {
-	if len(acc.Password) < 5 {
-		return "Password not long enough"
-	}
-
-	if len(acc.Username) < 1 {
-		return "No username provided"
-	}
-
-	if len(acc.FirstName) < 1 {
-		return "No first name provided"
-	}
-
-	if len(acc.LastName) < 1 {
-		return "No last name provided"
-	}
-
-	if len(acc.PhoneNumber) < 1 {
-		return "No phone number provided"
-	}
-
-	if len(acc.AccountNumber) < 1 {
-		return "No account number provided"
-	}
-
-	return ""
-}
-
-func errorResponse(w http.ResponseWriter, code int, err error, response []byte) {
-	log.Println("SERVER ERROR:", err)
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	if len(response) > 0 {
-		w.Write(response)
-	}
-}
-
-func successResponse(w http.ResponseWriter, code int, response []byte) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(code)
-	w.Write(response)
+	logger.Log("exit", <-errs)
 }
