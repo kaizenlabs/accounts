@@ -1,0 +1,11 @@
+FROM golang:alpine
+RUN apk add --no-cache git mercurial
+RUN git config --global url."https://johnantonusmaximus:efa974ee30e41bdcf4e1a99c92a365d83fee1a65@github.com/".insteadOf "https://github.com/"
+WORKDIR /go/src/app
+COPY . .
+RUN go get -u github.com/kardianos/govendor
+RUN govendor init
+RUN govendor sync
+RUN go build -o Accounts .
+EXPOSE 3002
+CMD ["./Accounts"]
