@@ -1,0 +1,17 @@
+version: '3'
+services:
+  datastore:
+    image: knarz/datastore-emulator
+  accounts:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: johnantonusmaximus/accounts:develop
+    ports:
+      - "3002:3002"
+    environment:
+      - DATASTORE_EMULATOR_HOST=datastore:8432
+      - export DATASTORE_PROJECT_ID=ethos-197614
+    restart: always
+    links:
+      - datastore

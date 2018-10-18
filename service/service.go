@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -55,7 +54,6 @@ func (a accountService) LoginUserService(ctx context.Context, req types.LoginReq
 	if req.Auth.Username == "" || req.Auth.Password == "" {
 		return types.AccountResponse{}, errors.ErrMissingParametersReason.New("Username or password is missing")
 	}
-
 	LoginResponse, err := a.Login(ctx, req)
 
 	return LoginResponse, err
@@ -166,7 +164,7 @@ func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRe
 		a.requestLatency.With("method", "LoginUser", "granularity", "login_user").Observe(time.Since(begin).Seconds())
 		a.circuitStatus.With("circuit_name", "LoginUser").Set(getCircuitStatus("LoginUser"))
 	}(time.Now())
-
+	log.Println("AuthRequest:", req.Auth)
 	key := datastore.NameKey("Account", req.Auth.Username, nil)
 	acc := new(types.Account)
 	if err = a.client.Get(ctx, key, acc); err != nil {
@@ -237,7 +235,6 @@ func (a accountService) CreateUserInDB(ctx context.Context, req types.CreateUser
 
 	errString := checkForDataErrors(req.Account)
 	if len(errString) > 0 {
-		fmt.Println("Error returned!")
 		return resp, err
 	}
 
