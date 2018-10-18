@@ -35,8 +35,8 @@ type Account struct {
 
 // Auth represent an authentication request
 type Auth struct {
-	Username string
-	Password string
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
 // Endpoints wraps all endpoints in a struct

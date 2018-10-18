@@ -129,7 +129,6 @@ func decodeLoginUser(_ context.Context, r *http.Request) (request interface{}, e
 	if err != nil {
 		return types.AccountResponse{}, err
 	}
-
 	return types.LoginRequest{
 		Auth: auth,
 	}, nil

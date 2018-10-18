@@ -6,6 +6,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
+    image: johnantonusmaximus/accounts:develop
     ports:
       - "3002:3002"
     environment:
