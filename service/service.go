@@ -170,6 +170,7 @@ func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRe
 	if err = a.client.Get(ctx, key, acc); err != nil {
 		return resp, err
 	}
+	log.Println("Datastore entity retrieved!")
 
 	err = comparePassword(acc.Password, req.Auth.Password)
 	if err != nil {
@@ -208,6 +209,7 @@ func (a accountService) CheckForUserInDB(ctx context.Context, req types.CreateUs
 	// Datastore query here
 	key := datastore.NameKey("Account", req.Account.Username, nil)
 	acc := new(types.Account)
+	log.Println("AccountToCheckFor:", req.Account)
 	if err = a.client.Get(ctx, key, acc); err == nil {
 		return errors.ErrDuplicate
 	}
@@ -246,10 +248,12 @@ func (a accountService) CreateUserInDB(ctx context.Context, req types.CreateUser
 	accPtr := &req.Account
 
 	newKey := datastore.NameKey("Account", req.Account.Username, nil)
+	log.Println("CreateAccountRequest:", req.Account)
 	_, err = a.client.Put(ctx, newKey, accPtr)
 	if err != nil {
 		return resp, err
 	}
+	log.Println("Datastore query finished!")
 
 	resp = types.AccountResponse{
 		FirstName:     req.Account.FirstName,
