@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -249,11 +250,12 @@ func (a accountService) CreateUserInDB(ctx context.Context, req types.CreateUser
 
 	newKey := datastore.NameKey("Account", req.Account.Username, nil)
 	log.Println("CreateAccountRequest:", req.Account)
+	fmt.Println("CreateAccountRequest:", req.Account)
 	_, err = a.client.Put(ctx, newKey, accPtr)
 	if err != nil {
 		return resp, err
 	}
-	log.Println("Datastore query finished!")
+	fmt.Println("Datastore query finished!")
 
 	resp = types.AccountResponse{
 		FirstName:     req.Account.FirstName,
