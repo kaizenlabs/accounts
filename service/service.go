@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
 	datastore "cloud.google.com/go/datastore"
 	"github.com/afex/hystrix-go/hystrix"
+	logga "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
-	opentracing "github.com/opentracing/opentracing-go"
-
 	"github.com/johnantonusmaximus/Accounts/service/types"
 	"github.com/johnantonusmaximus/go-common/src/errors"
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/spf13/viper"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -165,13 +166,20 @@ func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRe
 		a.requestLatency.With("method", "LoginUser", "granularity", "login_user").Observe(time.Since(begin).Seconds())
 		a.circuitStatus.With("circuit_name", "LoginUser").Set(getCircuitStatus("LoginUser"))
 	}(time.Now())
-	log.Println("AuthRequest:", req.Auth)
+
+	var logger logga.Logger
+	{
+		logger = logga.NewLogfmtLogger(os.Stderr)
+		logger = logga.With(logger, "ts", logga.DefaultTimestampUTC)
+		logger = logga.With(logger, "caller", logga.DefaultCaller)
+	}
+	logger.Log("AuthRequest:", req.Auth)
 	key := datastore.NameKey("Account", req.Auth.Username, nil)
 	acc := new(types.Account)
 	if err = a.client.Get(ctx, key, acc); err != nil {
 		return resp, err
 	}
-	log.Println("Datastore entity retrieved!")
+	logger.Log("Datastore entity retrieved!")
 
 	err = comparePassword(acc.Password, req.Auth.Password)
 	if err != nil {
