@@ -78,6 +78,8 @@ func (a accountService) Login(ctx context.Context, req types.LoginRequest) (type
 	var err error
 	var loginResponse types.AccountResponse
 	errs := hystrix.Go("LoginUser", func() error {
+		var logger logga.Logger
+		logger.Log("Getting user from DB...")
 		loginResponse, err = a.GetUserDataFromDB(ctx, req)
 		if err != nil {
 			if sErr, ok := err.(*errors.Err); ok {
