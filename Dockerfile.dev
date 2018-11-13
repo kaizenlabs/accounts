@@ -1,7 +1,5 @@
 FROM golang:alpine as builder
-ENV GRPC_GO_LOG_SEVERITY_LEVEL INFO
 RUN apk add --no-cache git mercurial
-RUN apk --no-cache --update add ca-certificates
 RUN git config --global url."https://johnantonusmaximus:efa974ee30e41bdcf4e1a99c92a365d83fee1a65@github.com/".insteadOf "https://github.com/"
 WORKDIR /go/src/github.com/johnantonusmaximus/Ethos-App/Accounts
 COPY . .
@@ -10,11 +8,8 @@ RUN govendor init
 RUN govendor sync
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o Accounts .
 
-FROM alpine:latest
-RUN apk --no-cache add ca-certificates 
-WORKDIR /app
-RUN mkdir /app/conf
+FROM gcr.io/distroless/base
 COPY --from=builder /go/src/github.com/johnantonusmaximus/Ethos-App/Accounts/Accounts .
-COPY --from=builder /go/src/github.com/johnantonusmaximus/Ethos-App/Accounts/conf /app/conf
+COPY --from=builder /go/src/github.com/johnantonusmaximus/Ethos-App/Accounts/conf /conf
 EXPOSE 3002
 CMD ["./Accounts"]
