@@ -109,50 +109,50 @@ func (a accountService) Login(ctx context.Context, req types.LoginRequest) (type
 
 // Login logs in a user
 func (a accountService) CreateUser(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error) {
-	output := make(chan bool, 1)
+	//output := make(chan bool, 1)
 	var err error
-	createUserResponse := types.AccountResponse{
-		FirstName:     "Dummy",
-		LastName:      "Dummy",
-		AccountNumber: "Dummy",
-		Username:      "Dummy@dummy.com",
-		Company:       "Dummies R Us",
-		PhoneNumber:   "555-DUM-MIES",
-	}
-	errs := hystrix.Go("CreateUser", func() error {
-		// err = a.CheckForUserInDB(ctx, req)
-		// if err != nil {
-		// 	if sErr, ok := err.(*errors.Err); ok {
-		// 		if sErr.GetCode() != 404 {
-		// 			return sErr
-		// 		}
-		// 	} else {
-		// 		return err
-		// 	}
-		// }
-		// createUserResponse, err = a.CreateUserInDB(ctx, req)
-		// if err != nil {
-		// 	if sErr, ok := err.(*errors.Err); ok {
-		// 		if sErr.GetCode() != 404 {
-		// 			return sErr
-		// 		}
-		// 	} else {
-		// 		return err
-		// 	}
-		// }
-		time.Sleep(time.Second * 5)
-		output <- true
-		return nil
-	}, nil)
-
-	select {
-	case out := <-output:
-		if out {
+	var createUserResponse types.AccountResponse
+	// createUserResponse := types.AccountResponse{
+	// 	FirstName:     "Dummy",
+	// 	LastName:      "Dummy",
+	// 	AccountNumber: "Dummy",
+	// 	Username:      "Dummy@dummy.com",
+	// 	Company:       "Dummies R Us",
+	// 	PhoneNumber:   "555-DUM-MIES",
+	// }
+	//errs := hystrix.Go("CreateUser", func() error {
+	// err = a.CheckForUserInDB(ctx, req)
+	// if err != nil {
+	// 	if sErr, ok := err.(*errors.Err); ok {
+	// 		if sErr.GetCode() != 404 {
+	// 			return sErr
+	// 		}
+	// 	} else {
+	// 		return err
+	// 	}
+	// }
+	createUserResponse, err = a.CreateUserInDB(ctx, req)
+	if err != nil {
+		if sErr, ok := err.(*errors.Err); ok {
+			if sErr.GetCode() != 404 {
+				return createUserResponse, sErr
+			}
+		} else {
 			return createUserResponse, err
 		}
-	case err := <-errs:
-		return createUserResponse, err
 	}
+	// 	output <- true
+	// 	return nil
+	// }, nil)
+
+	// select {
+	// case out := <-output:
+	// 	if out {
+	// 		return createUserResponse, err
+	// 	}
+	// case err := <-errs:
+	// 	return createUserResponse, err
+	// }
 
 	return createUserResponse, err
 
