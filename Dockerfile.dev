@@ -2,10 +2,9 @@ FROM golang:alpine as builder
 RUN apk add --no-cache git mercurial
 RUN apk --no-cache --update add ca-certificates
 RUN git config --global url."https://johnantonusmaximus:efa974ee30e41bdcf4e1a99c92a365d83fee1a65@github.com/".insteadOf "https://github.com/"
-WORKDIR /go/src/app
+WORKDIR /go/src/github.com/johnantonusmaximus/Ethos-App/Accounts
 COPY . .
 RUN go get -u github.com/kardianos/govendor
-RUN go get -u github.com/johnantonusmaximus/Ethos-App
 RUN govendor init
 RUN govendor sync
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o Accounts .
@@ -14,7 +13,7 @@ FROM alpine:latest
 RUN apk --no-cache add ca-certificates 
 WORKDIR /app
 RUN mkdir /app/conf
-COPY --from=builder /go/src/app/Accounts .
-COPY --from=builder /go/src/app/conf /app/conf
+COPY --from=builder /go/src/github.com/johnantonusmaximus/Ethos-App/Accounts/Accounts .
+COPY --from=builder /go/src/github.com/johnantonusmaximus/Ethos-App/Accounts/conf /app/conf
 EXPOSE 3002
 CMD ["./Accounts"]
