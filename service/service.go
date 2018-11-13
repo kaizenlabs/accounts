@@ -67,9 +67,11 @@ func (a accountService) CreateUserService(ctx context.Context, req types.CreateU
 		return types.AccountResponse{}, errors.ErrMissingParametersReason.New("Missing parameters for account creation")
 	}
 
-	CreateUserResponse, err := a.CreateUser(ctx, req)
+	//CreateUserResponse, err := a.CreateUser(ctx, req)
+	var createUserResponse types.AccountResponse
+	createUserResponse, err := a.CreateUserInDB(ctx, req)
 
-	return CreateUserResponse, err
+	return createUserResponse, err
 }
 
 // Login logs in a user
@@ -109,50 +111,42 @@ func (a accountService) Login(ctx context.Context, req types.LoginRequest) (type
 
 // Login logs in a user
 func (a accountService) CreateUser(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error) {
-	//output := make(chan bool, 1)
+	output := make(chan bool, 1)
 	var err error
 	var createUserResponse types.AccountResponse
-	// createUserResponse := types.AccountResponse{
-	// 	FirstName:     "Dummy",
-	// 	LastName:      "Dummy",
-	// 	AccountNumber: "Dummy",
-	// 	Username:      "Dummy@dummy.com",
-	// 	Company:       "Dummies R Us",
-	// 	PhoneNumber:   "555-DUM-MIES",
-	// }
-	//errs := hystrix.Go("CreateUser", func() error {
-	// err = a.CheckForUserInDB(ctx, req)
-	// if err != nil {
-	// 	if sErr, ok := err.(*errors.Err); ok {
-	// 		if sErr.GetCode() != 404 {
-	// 			return sErr
-	// 		}
-	// 	} else {
-	// 		return err
-	// 	}
-	// }
-	createUserResponse, err = a.CreateUserInDB(ctx, req)
-	if err != nil {
-		if sErr, ok := err.(*errors.Err); ok {
-			if sErr.GetCode() != 404 {
-				return createUserResponse, sErr
+	errs := hystrix.Go("CreateUser", func() error {
+		err = a.CheckForUserInDB(ctx, req)
+		if err != nil {
+			if sErr, ok := err.(*errors.Err); ok {
+				if sErr.GetCode() != 404 {
+					return sErr
+				}
+			} else {
+				return err
 			}
-		} else {
+		}
+		createUserResponse, err = a.CreateUserInDB(ctx, req)
+		if err != nil {
+			if sErr, ok := err.(*errors.Err); ok {
+				if sErr.GetCode() != 404 {
+					return sErr
+				}
+			} else {
+				return err
+			}
+		}
+		output <- true
+		return nil
+	}, nil)
+
+	select {
+	case out := <-output:
+		if out {
 			return createUserResponse, err
 		}
+	case err := <-errs:
+		return createUserResponse, err
 	}
-	// 	output <- true
-	// 	return nil
-	// }, nil)
-
-	// select {
-	// case out := <-output:
-	// 	if out {
-	// 		return createUserResponse, err
-	// 	}
-	// case err := <-errs:
-	// 	return createUserResponse, err
-	// }
 
 	return createUserResponse, err
 
