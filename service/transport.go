@@ -13,7 +13,7 @@ import (
 	opentracing "github.com/go-kit/kit/tracing/opentracing"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
-	"github.com/johnantonusmaximus/Accounts/service/types"
+	"github.com/johnantonusmaximus/Ethos-App/Accounts/service/types"
 	"github.com/johnantonusmaximus/go-common/src/errors"
 	stdopentracing "github.com/opentracing/opentracing-go"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"

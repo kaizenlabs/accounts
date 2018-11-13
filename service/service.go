@@ -13,7 +13,7 @@ import (
 	"github.com/afex/hystrix-go/hystrix"
 	logga "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
-	"github.com/johnantonusmaximus/Accounts/service/types"
+	"github.com/johnantonusmaximus/Ethos-App/Accounts/service/types"
 	"github.com/johnantonusmaximus/go-common/src/errors"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/spf13/viper"
@@ -67,19 +67,8 @@ func (a accountService) CreateUserService(ctx context.Context, req types.CreateU
 		return types.AccountResponse{}, errors.ErrMissingParametersReason.New("Missing parameters for account creation")
 	}
 
-	//CreateUserResponse, err := a.CreateUser(ctx, req)
-	// var createUserResponse types.AccountResponse
-	// createUserResponse, err := a.CreateUserInDB(ctx, req)
-	var err error
-	createUserResponse := types.AccountResponse{
-		FirstName:     "Dummy",
-		LastName:      "Dummy",
-		Company:       "Dummies R Us",
-		PhoneNumber:   "1800-Dummies",
-		AccountNumber: "UTXO-1234",
-		Username:      "dummy@Dummies.com",
-	}
-	return createUserResponse, err
+	CreateUserResponse, err := a.CreateUser(ctx, req)
+	return CreateUserResponse, err
 }
 
 // Login logs in a user

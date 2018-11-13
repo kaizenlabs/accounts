@@ -361,18 +361,6 @@
 			"revisionTime": "2017-10-17T18:19:29Z"
 		},
 		{
-			"checksumSHA1": "KQPepDyScPZtUItvfC48obTc5CQ=",
-			"path": "github.com/johnantonusmaximus/Accounts/service",
-			"revision": "16480ca827200328b66200f8fa17aba6df6772ca",
-			"revisionTime": "2018-10-17T17:44:24Z"
-		},
-		{
-			"checksumSHA1": "E+4SIBz7lbRxVedqRDRLmW9AqDQ=",
-			"path": "github.com/johnantonusmaximus/Accounts/service/types",
-			"revision": "3b13df9a1335d2a8a6d5ea6453770ca119ee2c8f",
-			"revisionTime": "2018-10-17T17:45:45Z"
-		},
-		{
 			"checksumSHA1": "kRxQpju62rwYeMc8Oxlu8DI+3Zo=",
 			"path": "github.com/johnantonusmaximus/go-common/src/errors",
 			"revision": "8baea7b5cd5b9241a377738c6e660a77959108ec",
@@ -1237,5 +1225,5 @@
 			"revisionTime": "2018-09-20T02:52:46Z"
 		}
 	],
-	"rootPath": "github.com/johnantonusmaximus/Accounts"
+	"rootPath": "github.com/johnantonusmaximus/Ethos-App/Accounts"
 }

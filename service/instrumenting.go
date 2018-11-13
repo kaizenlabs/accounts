@@ -7,7 +7,7 @@ import (
 
 	"github.com/afex/hystrix-go/hystrix"
 	"github.com/go-kit/kit/metrics"
-	"github.com/johnantonusmaximus/Accounts/service/types"
+	"github.com/johnantonusmaximus/Ethos-App/Accounts/service/types"
 	opentracing "github.com/opentracing/opentracing-go"
 	opentracinglog "github.com/opentracing/opentracing-go/log"
 	"github.com/spf13/viper"

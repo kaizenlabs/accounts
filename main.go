@@ -14,7 +14,7 @@ import (
 	"github.com/afex/hystrix-go/hystrix"
 	"github.com/go-kit/kit/log"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
-	"github.com/johnantonusmaximus/Accounts/service"
+	"github.com/johnantonusmaximus/Ethos-App/Accounts/service"
 	stdopentracing "github.com/opentracing/opentracing-go"
 	zipkin "github.com/openzipkin/zipkin-go-opentracing"
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
