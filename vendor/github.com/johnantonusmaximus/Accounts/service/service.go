@@ -67,9 +67,17 @@ func (a accountService) CreateUserService(ctx context.Context, req types.CreateU
 		return types.AccountResponse{}, errors.ErrMissingParametersReason.New("Missing parameters for account creation")
 	}
 
-	CreateUserResponse, err := a.CreateUser(ctx, req)
+	var err error
+	createUserResponse := types.AccountResponse{
+		FirstName:     "Dummy",
+		LastName:      "Dummy",
+		Company:       "Dummies R Us",
+		PhoneNumber:   "1800-Dummies",
+		AccountNumber: "UTXO-1234",
+		Username:      "dummy@Dummies.com",
+	}
 
-	return CreateUserResponse, err
+	return createUserResponse, err
 }
 
 // Login logs in a user

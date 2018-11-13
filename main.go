@@ -21,7 +21,7 @@ import (
 )
 
 // PORT is the port for the server
-const PORT string = "3002"
+const PORT string = "2999"
 
 func main() {
 	var tracer stdopentracing.Tracer

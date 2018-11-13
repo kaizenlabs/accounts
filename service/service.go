@@ -68,9 +68,17 @@ func (a accountService) CreateUserService(ctx context.Context, req types.CreateU
 	}
 
 	//CreateUserResponse, err := a.CreateUser(ctx, req)
-	var createUserResponse types.AccountResponse
-	createUserResponse, err := a.CreateUserInDB(ctx, req)
-
+	// var createUserResponse types.AccountResponse
+	// createUserResponse, err := a.CreateUserInDB(ctx, req)
+	var err error
+	createUserResponse := types.AccountResponse{
+		FirstName:     "Dummy",
+		LastName:      "Dummy",
+		Company:       "Dummies R Us",
+		PhoneNumber:   "1800-Dummies",
+		AccountNumber: "UTXO-1234",
+		Username:      "dummy@Dummies.com",
+	}
 	return createUserResponse, err
 }
 
