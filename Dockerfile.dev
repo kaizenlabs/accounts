@@ -5,6 +5,7 @@ RUN git config --global url."https://johnantonusmaximus:efa974ee30e41bdcf4e1a99c
 WORKDIR /go/src/app
 COPY . .
 RUN go get -u github.com/kardianos/govendor
+RUN go get -u github.com/johnantonusmaximus/Ethos-App
 RUN govendor init
 RUN govendor sync
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o Accounts .
