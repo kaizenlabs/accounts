@@ -26,18 +26,12 @@ type accountService struct {
 	requestLatency metrics.Histogram
 	circuitStatus  metrics.Gauge
 	config         viper.Viper
-	client         *datastore.Client
 }
 
 // AccountService instantiates the Account service with counters, latency, metrics, and circuit status
 func AccountService(requestCount metrics.Counter, requestLatency metrics.Histogram, circuitStatus metrics.Gauge) Service {
 	config := InitConfig("./conf")
-	ctx := context.Background()
-	client, err := datastore.NewClient(ctx, config.GetString("PROJECT_ID"))
-	if err != nil {
-		log.Fatal("Error creating datastore client: ", err)
-	}
-	return &accountService{requestCount, requestLatency, circuitStatus, *config, client}
+	return &accountService{requestCount, requestLatency, circuitStatus, *config}
 }
 
 // Service defines an Accounts service interface for Go-Kit
@@ -174,10 +168,14 @@ func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRe
 		logger = logga.With(logger, "ts", logga.DefaultTimestampUTC)
 		logger = logga.With(logger, "caller", logga.DefaultCaller)
 	}
+	client, err := datastore.NewClient(ctx, a.config.GetString("PROJECT_ID"))
+	if err != nil {
+		log.Fatal("Error creating datastore client: ", err)
+	}
 	logger.Log("AuthRequest:", req.Auth)
 	key := datastore.NameKey("Account", req.Auth.Username, nil)
 	acc := new(types.Account)
-	if err = a.client.Get(ctx, key, acc); err != nil {
+	if err = client.Get(ctx, key, acc); err != nil {
 		return resp, err
 	}
 	logger.Log("Datastore entity retrieved!")
@@ -216,11 +214,15 @@ func (a accountService) CheckForUserInDB(ctx context.Context, req types.CreateUs
 		a.circuitStatus.With("circuit_name", "CreateUser").Set(getCircuitStatus("createUser"))
 	}(time.Now())
 
+	client, err := datastore.NewClient(ctx, a.config.GetString("PROJECT_ID"))
+	if err != nil {
+		log.Fatal("Error creating datastore client: ", err)
+	}
 	// Datastore query here
 	key := datastore.NameKey("Account", req.Account.Username, nil)
 	acc := new(types.Account)
 	log.Println("AccountToCheckFor:", req.Account)
-	if err = a.client.Get(ctx, key, acc); err == nil {
+	if err = client.Get(ctx, key, acc); err == nil {
 		return errors.ErrDuplicate
 	}
 	return nil
@@ -257,10 +259,15 @@ func (a accountService) CreateUserInDB(ctx context.Context, req types.CreateUser
 	req.Account.Password = hashedPassword
 	accPtr := &req.Account
 
+	client, err := datastore.NewClient(ctx, a.config.GetString("PROJECT_ID"))
+	if err != nil {
+		log.Fatal("Error creating datastore client: ", err)
+	}
+
 	newKey := datastore.NameKey("Account", req.Account.Username, nil)
 	log.Println("CreateAccountRequest:", req.Account)
 	fmt.Println("CreateAccountRequest:", req.Account)
-	_, err = a.client.Put(ctx, newKey, accPtr)
+	_, err = client.Put(ctx, newKey, accPtr)
 	if err != nil {
 		return resp, err
 	}
