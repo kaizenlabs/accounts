@@ -1,4 +1,5 @@
 FROM golang:alpine as builder
+ENV GRPC_GO_LOG_SEVERITY_LEVEL INFO
 RUN apk add --no-cache git mercurial
 RUN apk --no-cache --update add ca-certificates
 RUN git config --global url."https://johnantonusmaximus:efa974ee30e41bdcf4e1a99c92a365d83fee1a65@github.com/".insteadOf "https://github.com/"
