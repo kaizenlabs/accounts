@@ -2,16 +2,13 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"time"
 
 	datastore "cloud.google.com/go/datastore"
 	"github.com/afex/hystrix-go/hystrix"
-	logga "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/metrics"
 	"github.com/johnantonusmaximus/Ethos-App/Accounts/service/types"
 	"github.com/johnantonusmaximus/go-common/src/errors"
@@ -50,6 +47,7 @@ func (a accountService) LoginUserService(ctx context.Context, req types.LoginReq
 	if req.Auth.Username == "" || req.Auth.Password == "" {
 		return types.AccountResponse{}, errors.ErrMissingParametersReason.New("Username or password is missing")
 	}
+
 	LoginResponse, err := a.Login(ctx, req)
 
 	return LoginResponse, err
@@ -71,8 +69,6 @@ func (a accountService) Login(ctx context.Context, req types.LoginRequest) (type
 	var err error
 	var loginResponse types.AccountResponse
 	errs := hystrix.Go("LoginUser", func() error {
-		var logger logga.Logger
-		logger.Log("Getting user from DB...")
 		loginResponse, err = a.GetUserDataFromDB(ctx, req)
 		if err != nil {
 			if sErr, ok := err.(*errors.Err); ok {
@@ -162,28 +158,22 @@ func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRe
 		a.circuitStatus.With("circuit_name", "LoginUser").Set(getCircuitStatus("LoginUser"))
 	}(time.Now())
 
-	var logger logga.Logger
-	{
-		logger = logga.NewLogfmtLogger(os.Stderr)
-		logger = logga.With(logger, "ts", logga.DefaultTimestampUTC)
-		logger = logga.With(logger, "caller", logga.DefaultCaller)
-	}
 	client, err := datastore.NewClient(ctx, a.config.GetString("PROJECT_ID"))
 	if err != nil {
 		log.Fatal("Error creating datastore client: ", err)
 	}
-	logger.Log("AuthRequest:", req.Auth)
+
 	key := datastore.NameKey("Account", req.Auth.Username, nil)
 	acc := new(types.Account)
 	if err = client.Get(ctx, key, acc); err != nil {
 		return resp, err
 	}
-	logger.Log("Datastore entity retrieved!")
 
 	err = comparePassword(acc.Password, req.Auth.Password)
 	if err != nil {
 		return resp, err
 	}
+
 	resp = types.AccountResponse{
 		FirstName:     acc.FirstName,
 		LastName:      acc.LastName,
@@ -221,7 +211,6 @@ func (a accountService) CheckForUserInDB(ctx context.Context, req types.CreateUs
 	// Datastore query here
 	key := datastore.NameKey("Account", req.Account.Username, nil)
 	acc := new(types.Account)
-	log.Println("AccountToCheckFor:", req.Account)
 	if err = client.Get(ctx, key, acc); err == nil {
 		return errors.ErrDuplicate
 	}
@@ -265,13 +254,10 @@ func (a accountService) CreateUserInDB(ctx context.Context, req types.CreateUser
 	}
 
 	newKey := datastore.NameKey("Account", req.Account.Username, nil)
-	log.Println("CreateAccountRequest:", req.Account)
-	fmt.Println("CreateAccountRequest:", req.Account)
 	_, err = client.Put(ctx, newKey, accPtr)
 	if err != nil {
 		return resp, err
 	}
-	fmt.Println("Datastore query finished!")
 
 	resp = types.AccountResponse{
 		FirstName:     req.Account.FirstName,

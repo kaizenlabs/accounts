@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/go-kit/kit/endpoint"
-	"github.com/go-kit/kit/log"
 	"github.com/johnantonusmaximus/Ethos-App/Accounts/service/types"
 )
 
@@ -20,8 +19,6 @@ func MakeServerEndpoints(s Service) types.Endpoints {
 func MakeLoginEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(types.LoginRequest)
-		var logger log.Logger
-		logger.Log("Req: ", req)
 		r, e := s.LoginUserService(ctx, req)
 		return &getAccountResponse{r}, e
 	}
