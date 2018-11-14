@@ -1,6 +1,8 @@
 package service
 
 import (
+	"os"
+
 	"github.com/prometheus/common/log"
 	"github.com/spf13/viper"
 )
@@ -16,7 +18,7 @@ func InitConfig(path string) *viper.Viper {
 		log.Fatal(err)
 	}
 
-	env := v.GetString("ENV")
+	env := os.Getenv("ENV")
 	if env != "" {
 		v.SetConfigName(env)
 		err = v.MergeInConfig()
