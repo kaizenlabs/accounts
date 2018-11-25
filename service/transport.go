@@ -75,7 +75,11 @@ func MakeHTTPHandler(ctx context.Context, s Service, tracer stdopentracing.Trace
 	sub.Handle("/debug/pprof/block", httpprof.Handler("block"))
 	sub.Handle("/metrics", promhttp.HandlerFor(stdprometheus.DefaultGatherer, promhttp.HandlerOpts{}))
 	sub.HandleFunc("/health", HealthCheckHandler)
-	handler := cors.Default().Handler(sub)
+	c := cors.New(cors.Options{
+		AllowedOrigins: []string{"https://*.ethos.cloud"},
+		Debug:          true,
+	})
+	handler := c.Handler(sub)
 	//originsOK := handlers.AllowedOrigins([]string{"*"})
 	return handler
 }
