@@ -10,7 +10,7 @@ import (
 	datastore "cloud.google.com/go/datastore"
 	"github.com/afex/hystrix-go/hystrix"
 	"github.com/go-kit/kit/metrics"
-	"github.com/johnantonusmaximus/Ethos-App/Accounts/service/types"
+	"github.com/johnantonusmaximus/accounts/service/types"
 	"github.com/johnantonusmaximus/go-common/src/errors"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/spf13/viper"

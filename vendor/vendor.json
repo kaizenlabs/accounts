@@ -3,18 +3,6 @@
 	"ignore": "test",
 	"package": [
 		{
-			"path": "appengine",
-			"revision": ""
-		},
-		{
-			"path": "appengine_internal",
-			"revision": ""
-		},
-		{
-			"path": "appengine_internal/base",
-			"revision": ""
-		},
-		{
 			"checksumSHA1": "j/0+O4eJ99Jrb9un/bwi5npLyOM=",
 			"path": "cloud.google.com/go/compute/metadata",
 			"revision": "144ec686a649bde4b369c628a4dedb9dd152bbc5",
@@ -1225,5 +1213,5 @@
 			"revisionTime": "2018-09-20T02:52:46Z"
 		}
 	],
-	"rootPath": "github.com/johnantonusmaximus/Ethos-App/Accounts"
+	"rootPath": "github.com/johnantonusmaximus/accounts"
 }

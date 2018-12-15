@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/go-kit/kit/endpoint"
-	"github.com/johnantonusmaximus/Ethos-App/Accounts/service/types"
+	"github.com/johnantonusmaximus/accounts/service/types"
 )
 
 // MakeServerEndpoints creates the endpoints for the server's services

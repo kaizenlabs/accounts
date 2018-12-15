@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log"
-	"github.com/johnantonusmaximus/Ethos-App/Accounts/service/types"
+	"github.com/johnantonusmaximus/accounts/service/types"
 	"github.com/spf13/viper"
 )
 
