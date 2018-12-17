@@ -4,7 +4,9 @@ echo "Building image..."
 
 openssl version
 
-ls ../../root/
+cd ..
+cd ..
+ls
 
 
 
