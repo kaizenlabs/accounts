@@ -3,7 +3,7 @@
 echo "Building image..."
 
 openssl version
-grep -r "google-cloud-sdk" /
+sudo grep -r "google-cloud-sdk" 
 
 
 
