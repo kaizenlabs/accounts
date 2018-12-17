@@ -8,11 +8,10 @@ ls
 cd 
 ls ~ 
 echo "End\n"
-ls ~/bin
+ls /
 echo "End\n"
-ls ~/var
 echo "End\n"
-ls ~/var/go
+ls /var/go
 
 
 
