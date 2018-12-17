@@ -4,14 +4,8 @@ echo "Building image..."
 
 openssl version
 echo $PATH
-ls
-cd 
-ls ~ 
-echo "End\n"
-ls /
-echo "End\n"
-echo "End\n"
-ls /var/go
+ls /go
+echo "End \n"
 
 
 
