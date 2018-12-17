@@ -3,7 +3,9 @@
 echo "Building image..."
 
 openssl version
-echo $HOME
+echo $PATH
+ls
+ls root
 
 # docker build -t gcr.io/ethos-197614/accounts:develop -t  gcr.io/ethos-197614/accounts:develop-$SHA  -f ./Dockerfile.dev .
 
