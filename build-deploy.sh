@@ -3,7 +3,6 @@
 echo "Building image..."
 
 openssl version
-ls ~/usr/local
 
 
 
