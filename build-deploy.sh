@@ -12,7 +12,7 @@ ls ~/bin
 echo "End\n"
 ls ~/var
 echo "End\n"
-ls ~/google-cloud-sdk
+ls ~/var/go
 
 
 
