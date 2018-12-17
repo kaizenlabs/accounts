@@ -3,9 +3,7 @@
 echo "Building image..."
 
 openssl version
-echo $PATH
-ls /go
-echo "End \n"
+grep -r "google-cloud-sdk" ~
 
 
 
