@@ -6,6 +6,7 @@ openssl version
 
 cd ..
 cd ..
+cd ..
 ls
 
 
