@@ -7,7 +7,7 @@ openssl version
 cd ..
 cd ..
 cd ..
-ls usr/local
+ls root
 
 
 
