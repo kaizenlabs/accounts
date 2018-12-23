@@ -2,7 +2,7 @@
 
 echo "Building image..."
 
-openssl enc -aes-256-cbc -pass pass:$PASS -d -in service-account.en -out sa.json -p
+openssl enc -aes-256-cbc -pass pass:$PASS -d -in service-account.enc -out sa.json -p
 
 gcloud auth activate-service-account --key-file sa.json
 gcloud config set compute/zone us-central1-a
