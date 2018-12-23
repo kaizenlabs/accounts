@@ -1,5 +1,7 @@
 #!/bin/bash
 
+SHA=$(git rev-parse HEAD)
+
 echo "Building image..."
 
 openssl enc -aes-256-cbc -pass pass:$PASS -d -in service-account.enc -out sa.json -p
