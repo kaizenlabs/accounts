@@ -8,6 +8,8 @@ gcloud auth activate-service-account --key-file sa.json
 gcloud config set compute/zone us-central1-a
 gcloud config set project $PROJECT_ID
 gcloud container clusters get-credentials ethos-cluster-develop
+gcloud auth configure-docker -q
+
 
 docker build -t gcr.io/ethos-197614/accounts:develop -t  gcr.io/ethos-197614/accounts:develop-$SHA  -f ./Dockerfile.dev .
 
