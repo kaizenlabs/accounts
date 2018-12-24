@@ -12,7 +12,7 @@ gcloud config set project $PROJECT_ID
 gcloud container clusters get-credentials ethos-cluster-develop
 gcloud auth configure-docker -q
 
-kubectl apply -f k8s_dev
+kubectl apply -f k8s_dev -n default
 
 docker build -t gcr.io/ethos-197614/accounts:develop -t  gcr.io/ethos-197614/accounts:develop-$SHA  -f ./Dockerfile.dev .
 
@@ -20,8 +20,4 @@ docker push gcr.io/ethos-197614/accounts:develop-$SHA
 
 docker push gcr.io/ethos-197614/accounts:develop
 
-kubectl set image deployments/accounts-deployment accounts=gcr.io/ethos-197614/accounts:develop-$SHA
-
-kubectl get pods
-
-kubectl describe deployment accounts-deployment
+kubectl set image deployments/accounts-deployment accounts=gcr.io/ethos-197614/accounts:develop-$SHA -n default
