@@ -20,4 +20,8 @@ docker push gcr.io/ethos-197614/accounts:develop-$SHA
 
 docker push gcr.io/ethos-197614/accounts:develop
 
-kubectl set image deployment accounts-deployment accounts=$(docker inspect --format='{{index .RepoDigests 0}}' gcr.io/ethos-197614/accounts:develop-$SHA)
+kubectl set image deployments/accounts-deployment accounts=gcr.io/ethos-197614/accounts:develop-$SHA
+
+kubectl get pods
+
+kubectl describe deployment accounts-deployment
