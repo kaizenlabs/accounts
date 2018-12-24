@@ -20,4 +20,5 @@ docker push gcr.io/ethos-197614/accounts:develop
 
 kubectl apply -f k8s_dev
 
+sleep 3
 kubectl set image deployments/accounts-deployment accounts=gcr.io/ethos-197614/accounts:develop-$SHA
