@@ -516,7 +516,7 @@ func newRequest(to []string, subject, body string) *EmailRequest {
 func generateResetToken(account types.AccountResponse) string {
 
 	h := sha1.New()
-	h.Write([]byte(account.Username + account.AccountNumber))
+	h.Write([]byte(account.Username + account.Password))
 	bs := h.Sum(nil)
 	e := fmt.Sprintf("%x", bs)
 	b := []byte(e)
