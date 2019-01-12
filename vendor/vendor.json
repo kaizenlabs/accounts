@@ -111,6 +111,12 @@
 			"revisionTime": "2017-08-29T19:49:58Z"
 		},
 		{
+			"checksumSHA1": "GFCSxp+N669T31OCBXuBRcX82MA=",
+			"path": "github.com/dchest/authcookie",
+			"revision": "fbdef6e998665bcb27a2227f39d840dbfc62a918",
+			"revisionTime": "2012-09-17T13:53:55Z"
+		},
+		{
 			"checksumSHA1": "m9/cG6Vu3s2YDMfh0WIW7xa0UA8=",
 			"path": "github.com/dchest/passwordreset",
 			"revision": "642cf836ac8dfd4ddec7a28cbef7b00da0807812",
