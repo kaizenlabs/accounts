@@ -170,13 +170,11 @@ func (a accountService) ResetPasswordRequest(ctx context.Context, req types.Rese
 	errs := hystrix.Go("ResetPasswordRequest", func() error {
 		accountResponse, err = a.GetUserInDBForPasswordReset(ctx, req)
 		if err != nil {
-			if sErr, ok := err.(*errors.Err); ok {
-				if sErr.GetCode() != 404 {
-					return sErr
-				}
-			} else {
-				return err
-			}
+			err = nil
+			time.Sleep(3 * time.Second)
+			// This exits out of the resetpassword flow without sending an email to anyone
+			output <- true
+			return err
 		}
 
 		resetToken := generateResetToken(accountResponse)
