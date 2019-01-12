@@ -111,6 +111,11 @@ func main() {
 			MaxConcurrentRequests: 100,
 			ErrorPercentThreshold: 25,
 		})
+		hystrix.ConfigureCommand("ResetPasswordRequest", hystrix.CommandConfig{
+			Timeout:               s.GetConfig().GetInt("baseTimeout"),
+			MaxConcurrentRequests: 100,
+			ErrorPercentThreshold: 25,
+		})
 		hystrixStreamHandler := hystrix.NewStreamHandler()
 		hystrixStreamHandler.Start()
 		go http.ListenAndServe(net.JoinHostPort("", PORT), hystrixStreamHandler)

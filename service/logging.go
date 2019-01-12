@@ -46,6 +46,15 @@ func (m loggingMiddleware) LoginUserService(ctx context.Context, req types.Login
 	return m.next.LoginUserService(ctx, req)
 }
 
+func (m loggingMiddleware) ResetPasswordRequestService(ctx context.Context, req types.ResetPasswordRequest) (r types.ResetPasswordRequestResponse, err error) {
+	if shouldLog(err, m) {
+		defer func(begin time.Time) {
+			m.logger.Log("method", "ResetPasswordRequest", "Username", req.Username, "took", fmt.Sprintf("%vms", time.Since(begin).Seconds()*1000), "err", err)
+		}(time.Now())
+	}
+	return m.next.ResetPasswordRequestService(ctx, req)
+}
+
 func (m loggingMiddleware) GetConfig() *viper.Viper {
 	return m.next.GetConfig()
 }

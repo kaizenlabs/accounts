@@ -111,6 +111,12 @@
 			"revisionTime": "2017-08-29T19:49:58Z"
 		},
 		{
+			"checksumSHA1": "m9/cG6Vu3s2YDMfh0WIW7xa0UA8=",
+			"path": "github.com/dchest/passwordreset",
+			"revision": "642cf836ac8dfd4ddec7a28cbef7b00da0807812",
+			"revisionTime": "2012-07-23T10:22:25Z"
+		},
+		{
 			"checksumSHA1": "y2Kh4iPlgCPXSGTCcFpzePYdzzg=",
 			"path": "github.com/eapache/go-resiliency/breaker",
 			"revision": "b1fe83b5b03f624450823b751b662259ffc6af70",

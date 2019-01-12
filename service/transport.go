@@ -64,6 +64,13 @@ func MakeHTTPHandler(ctx context.Context, s Service, tracer stdopentracing.Trace
 		append(options, httptransport.ServerBefore(opentracing.HTTPToContext(tracer, "CreateUser", logger)))...,
 	))
 
+	sub.Methods("POST").Path("/v1/reset-password-request").Handler(httptransport.NewServer(
+		e.ResetPasswordRequestEndpoint,
+		decodeResetPasswordRequest,
+		encodeResponse,
+		append(options, httptransport.ServerBefore(opentracing.HTTPToContext(tracer, "ResetPasswordRequest", logger)))...,
+	))
+
 	sub.HandleFunc("/debug/pprof/", httpprof.Index)
 	sub.HandleFunc("/debug/pprof/cmdline", httpprof.Cmdline)
 	sub.HandleFunc("/debug/pprof/profile", httpprof.Profile)
@@ -137,6 +144,21 @@ func decodeLoginUser(_ context.Context, r *http.Request) (request interface{}, e
 	return types.LoginRequest{
 		Auth: auth,
 	}, nil
+}
+
+func decodeResetPasswordRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
+	var resetPassword types.ResetPasswordRequest
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return types.ResetPasswordRequestResponse{}, err
+	}
+	err = json.Unmarshal(body, &resetPassword)
+	if err != nil {
+		return types.ResetPasswordRequestResponse{}, err
+	}
+
+	return resetPassword, nil
 }
 
 func encodeError(_ context.Context, err error, w http.ResponseWriter) {

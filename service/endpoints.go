@@ -10,8 +10,9 @@ import (
 // MakeServerEndpoints creates the endpoints for the server's services
 func MakeServerEndpoints(s Service) types.Endpoints {
 	return types.Endpoints{
-		LoginEndpoint:      MakeLoginEndpoint(s),
-		CreateUserEndpoint: MakeCreateUserEndpoint(s),
+		LoginEndpoint:                MakeLoginEndpoint(s),
+		CreateUserEndpoint:           MakeCreateUserEndpoint(s),
+		ResetPasswordRequestEndpoint: MakeResetPasswordRequestEndpoint(s),
 	}
 }
 
@@ -33,8 +34,21 @@ func MakeCreateUserEndpoint(s Service) endpoint.Endpoint {
 	}
 }
 
+// MakeResetPasswordRequestEndpoint creates the endpoints for a reset password request
+func MakeResetPasswordRequestEndpoint(s Service) endpoint.Endpoint {
+	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+		req := request.(types.ResetPasswordRequest)
+		r, e := s.ResetPasswordRequestService(ctx, req)
+		return &getResetPasswordRequestResponse{r}, e
+	}
+}
+
 // response for request
 // swagger:response productResponse
 type getAccountResponse struct {
 	types.AccountResponse
+}
+
+type getResetPasswordRequestResponse struct {
+	types.ResetPasswordRequestResponse
 }

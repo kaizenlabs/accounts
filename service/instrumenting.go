@@ -80,6 +80,33 @@ func (m *instrumentingMiddleware) CreateUserService(ctx context.Context, req typ
 	return r, err
 }
 
+func (m *instrumentingMiddleware) ResetPasswordRequestService(ctx context.Context, req types.ResetPasswordRequest) (r types.ResetPasswordRequestResponse, err error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ResetPasswordRequest")
+	defer span.Finish()
+	span.LogFields(
+		opentracinglog.String("Username", req.Username),
+		opentracinglog.String("method", "ResetPasswordRequest"),
+	)
+
+	defer func(begin time.Time) {
+		var code string
+		if err != nil {
+			code = strconv.Itoa(CodeFrom(err))
+		} else {
+			code = "200"
+		}
+
+		m.requestCount.With("method", "ResetPasswordRequest", "code", code, "granularity", "total").Add(1)
+		m.requestLatency.With("method", "ResetPasswordRequest", "granularity", "total").Observe(time.Since(begin).Seconds())
+		m.circuitStatus.With("circuit_name", "ResetPasswordRequest").Set(getCircuitStatus("ResetPasswordRequest"))
+	}(time.Now())
+	if err != nil {
+		span.SetTag("error", err.Error())
+	}
+	r, err = m.next.ResetPasswordRequestService(ctx, req)
+	return r, err
+}
+
 func (m *instrumentingMiddleware) GetConfig() *viper.Viper {
 	return m.next.GetConfig()
 }
