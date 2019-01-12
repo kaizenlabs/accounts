@@ -48,8 +48,8 @@ type Account struct {
 	Username      string `json:"username"`
 	Password      string `json:"password"`
 	AccountNumber string `json:"accountNumber"`
-	ResetToken    string `json:"resettoken,omitempty"`
-	Team          string `json:"team,omitempty"`
+	ResetToken    string `json:"resettoken"`
+	Team          string `json:"team"`
 	IsAdmin       bool   `json:"isadmin"`
 }
 
