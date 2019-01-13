@@ -30,6 +30,16 @@ spec:
               value: ethos-197614
             - name: GOOGLE_APPLICATION_CREDENTIALS
               value: /var/secrets/google/sa.json
+            - name: EMAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: email-password
+                  key: email-password
+            - name: ENCRYPT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: encrypt-secret
+                  key: encrypt-secret
           volumeMounts:
             - name: google-cloud-key
               mountPath: /var/secrets/google 

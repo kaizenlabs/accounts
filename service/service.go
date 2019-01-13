@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/smtp"
+	"os"
 	"strconv"
 	"time"
 
@@ -33,8 +34,9 @@ type accountService struct {
 
 var auth smtp.Auth
 
-var password string = "Jrojazz12"
-var secret []byte = []byte("JimbobTheGreat123!")
+// These both need to be K8s secrets
+var password string = os.Getenv("EMAIL_PASSWORD")
+var secret []byte = []byte(os.Getenv("ENCRYPT_SECRET"))
 
 // AccountService instantiates the Account service with counters, latency, metrics, and circuit status
 func AccountService(requestCount metrics.Counter, requestLatency metrics.Histogram, circuitStatus metrics.Gauge) Service {
