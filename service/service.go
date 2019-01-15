@@ -193,6 +193,7 @@ func (a accountService) ResetPassword(ctx context.Context, req types.ResetPasswo
 			}
 
 			accountResponse.Password = req.Password
+			accountResponse.ResetToken = ""
 
 			createUserRequest := types.CreateUserRequest{
 				Account: accountResponse,
