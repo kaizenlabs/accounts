@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"crypto/sha1"
 	"fmt"
 	"html/template"
 	"log"
@@ -46,9 +45,9 @@ func AccountService(requestCount metrics.Counter, requestLatency metrics.Histogr
 
 // Service defines an Accounts service interface for Go-Kit
 type Service interface {
-	LoginUserService(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error)
-	CreateUserService(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error)
-	ResetPasswordRequestService(ctx context.Context, req types.ResetPasswordRequest) (types.ResetPasswordRequestResponse, error)
+	LoginUserService(ctx context.Context, req types.LoginRequest) (types.Account, error)
+	CreateUserService(ctx context.Context, req types.CreateUserRequest) (types.Account, error)
+	ResetPasswordService(ctx context.Context, req types.ResetPassword) (types.ResetPasswordResponse, error)
 	GetConfig() *viper.Viper
 }
 
@@ -57,9 +56,9 @@ func (a accountService) GetConfig() *viper.Viper {
 }
 
 // LoginUser logs in a user
-func (a accountService) LoginUserService(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error) {
+func (a accountService) LoginUserService(ctx context.Context, req types.LoginRequest) (types.Account, error) {
 	if req.Auth.Username == "" || req.Auth.Password == "" {
-		return types.AccountResponse{}, errors.ErrMissingParametersReason.New("Username or password is missing")
+		return types.Account{}, errors.ErrMissingParametersReason.New("Username or password is missing")
 	}
 
 	LoginResponse, err := a.Login(ctx, req)
@@ -68,9 +67,9 @@ func (a accountService) LoginUserService(ctx context.Context, req types.LoginReq
 }
 
 // CreateUser creates a new user
-func (a accountService) CreateUserService(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error) {
+func (a accountService) CreateUserService(ctx context.Context, req types.CreateUserRequest) (types.Account, error) {
 	if req.Account.AccountNumber == "" || req.Account.Company == "" || req.Account.FirstName == "" || req.Account.LastName == "" || req.Account.PhoneNumber == "" || req.Account.Username == "" {
-		return types.AccountResponse{}, errors.ErrMissingParametersReason.New("Missing parameters for account creation")
+		return types.Account{}, errors.ErrMissingParametersReason.New("Missing parameters for account creation")
 	}
 
 	CreateUserResponse, err := a.CreateUser(ctx, req)
@@ -78,20 +77,20 @@ func (a accountService) CreateUserService(ctx context.Context, req types.CreateU
 }
 
 // CreateUser creates a new user
-func (a accountService) ResetPasswordRequestService(ctx context.Context, req types.ResetPasswordRequest) (types.ResetPasswordRequestResponse, error) {
+func (a accountService) ResetPasswordService(ctx context.Context, req types.ResetPassword) (types.ResetPasswordResponse, error) {
 	if req.Username == "" {
-		return types.ResetPasswordRequestResponse{}, errors.ErrMissingParametersReason.New("Missing parameters for password reset request")
+		return types.ResetPasswordResponse{}, errors.ErrMissingParametersReason.New("Missing parameters for password reset request")
 	}
 
-	ResetPasswordRequestResponse, err := a.ResetPasswordRequest(ctx, req)
-	return ResetPasswordRequestResponse, err
+	ResetPasswordResponse, err := a.ResetPassword(ctx, req)
+	return ResetPasswordResponse, err
 }
 
 // Login logs in a user
-func (a accountService) Login(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error) {
+func (a accountService) Login(ctx context.Context, req types.LoginRequest) (types.Account, error) {
 	output := make(chan bool, 1)
 	var err error
-	var loginResponse types.AccountResponse
+	var loginResponse types.Account
 	errs := hystrix.Go("LoginUser", func() error {
 		loginResponse, err = a.GetUserDataFromDB(ctx, req)
 		if err != nil {
@@ -121,10 +120,10 @@ func (a accountService) Login(ctx context.Context, req types.LoginRequest) (type
 }
 
 // Login logs in a user
-func (a accountService) CreateUser(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error) {
+func (a accountService) CreateUser(ctx context.Context, req types.CreateUserRequest) (types.Account, error) {
 	output := make(chan bool, 1)
 	var err error
-	var createUserResponse types.AccountResponse
+	var createUserResponse types.Account
 	errs := hystrix.Go("CreateUser", func() error {
 		err = a.CheckForUserInDB(ctx, req)
 		if err != nil {
@@ -163,12 +162,12 @@ func (a accountService) CreateUser(ctx context.Context, req types.CreateUserRequ
 
 }
 
-// Login logs in a user
-func (a accountService) ResetPasswordRequest(ctx context.Context, req types.ResetPasswordRequest) (types.ResetPasswordRequestResponse, error) {
+// ResetPasswordRequest sends a new email to reset a user password
+func (a accountService) ResetPassword(ctx context.Context, req types.ResetPassword) (types.ResetPasswordResponse, error) {
 	output := make(chan bool, 1)
 	var err error
-	var accountResponse types.AccountResponse
-	var resetPasswordRequestResponse types.ResetPasswordRequestResponse
+	var accountResponse types.Account
+	var resetPasswordRequestResponse types.ResetPasswordResponse
 	errs := hystrix.Go("ResetPasswordRequest", func() error {
 		accountResponse, err = a.GetUserInDBForPasswordReset(ctx, req)
 		if err != nil {
@@ -177,6 +176,36 @@ func (a accountService) ResetPasswordRequest(ctx context.Context, req types.Rese
 			// This exits out of the resetpassword flow without sending an email to anyone
 			output <- true
 			return err
+		}
+
+		if req.Token != "" && req.Password != "" {
+
+			fmt.Println("Req.Token: ", req.Token)
+			fmt.Println("acc.Token: ", accountResponse.ResetToken)
+
+			if req.Token != accountResponse.ResetToken {
+				return errors.ErrMissingParametersReason.New("Reset token expired")
+			}
+
+			_, err = passwordreset.VerifyToken(req.Token, getPasswordHash, secret)
+			if err != nil {
+				return err
+			}
+
+			accountResponse.Password = req.Password
+
+			createUserRequest := types.CreateUserRequest{
+				Account: accountResponse,
+			}
+
+			_, err = a.CreateUserInDB(ctx, createUserRequest)
+			if err != nil {
+				return err
+			}
+
+			output <- true
+			return nil
+
 		}
 
 		resetToken := generateResetToken(accountResponse)
@@ -196,6 +225,7 @@ func (a accountService) ResetPasswordRequest(ctx context.Context, req types.Rese
 				return err
 			}
 		}
+
 		output <- true
 		return nil
 	}, nil)
@@ -214,11 +244,11 @@ func (a accountService) ResetPasswordRequest(ctx context.Context, req types.Rese
 }
 
 // GetUserDataFromDB gets the user from the database
-func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error) {
+func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRequest) (types.Account, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "login_user")
 	defer span.Finish()
 	var err error
-	var resp types.AccountResponse
+	var resp types.Account
 	defer func(begin time.Time) {
 		var code string
 		if err != nil {
@@ -248,7 +278,7 @@ func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRe
 		return resp, err
 	}
 
-	resp = types.AccountResponse{
+	resp = types.Account{
 		FirstName:     acc.FirstName,
 		LastName:      acc.LastName,
 		PhoneNumber:   acc.PhoneNumber,
@@ -261,7 +291,7 @@ func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRe
 }
 
 // GetUserDataFromDB gets the user from the database
-func (a accountService) UpdateUserRecord(ctx context.Context, req types.AccountResponse) (types.AccountResponse, error) {
+func (a accountService) UpdateUserRecord(ctx context.Context, req types.Account) (types.Account, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "update_user_record")
 	defer span.Finish()
 	var err error
@@ -288,7 +318,7 @@ func (a accountService) UpdateUserRecord(ctx context.Context, req types.AccountR
 	newKey := datastore.NameKey("Account", req.Username, nil)
 	_, err = client.Put(ctx, newKey, accPtr)
 	if err != nil {
-		return types.AccountResponse{}, err
+		return types.Account{}, err
 	}
 
 	return req, err
@@ -326,11 +356,11 @@ func (a accountService) CheckForUserInDB(ctx context.Context, req types.CreateUs
 }
 
 // GetUserInDBForPasswordReset gets the user from the database for password reset
-func (a accountService) GetUserInDBForPasswordReset(ctx context.Context, req types.ResetPasswordRequest) (types.AccountResponse, error) {
+func (a accountService) GetUserInDBForPasswordReset(ctx context.Context, req types.ResetPassword) (types.Account, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "get_user_for_password_reset")
 	defer span.Finish()
 	var err error
-	var resp types.AccountResponse
+	var resp types.Account
 	defer func(begin time.Time) {
 		var code string
 		if err != nil {
@@ -355,23 +385,11 @@ func (a accountService) GetUserInDBForPasswordReset(ctx context.Context, req typ
 		return resp, err
 	}
 
-	resp = types.AccountResponse{
-		FirstName:     acc.FirstName,
-		LastName:      acc.LastName,
-		PhoneNumber:   acc.PhoneNumber,
-		Company:       acc.Company,
-		Username:      acc.Username,
-		AccountNumber: acc.AccountNumber,
-		Password:      acc.Password,
-		Team:          acc.Team,
-		IsAdmin:       acc.IsAdmin,
-	}
-
-	return resp, err
+	return *acc, err
 }
 
 // GetUserInDBForPasswordReset gets the user from the database for password reset
-func (a accountService) sendPasswordResetEmail(ctx context.Context, req types.AccountResponse, resetToken string) error {
+func (a accountService) sendPasswordResetEmail(ctx context.Context, req types.Account, resetToken string) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "send_password_reset_email")
 	defer span.Finish()
 	var err error
@@ -389,7 +407,7 @@ func (a accountService) sendPasswordResetEmail(ctx context.Context, req types.Ac
 	}(time.Now())
 
 	templateData := EmailTemplateData{
-		ResetLink: "https://app.ethos.cloud/#/create-new-password?reset=" + resetToken,
+		ResetLink: "https://app.ethos.cloud/#/create-new-password?username=" + req.Username + "&reset=" + resetToken,
 	}
 
 	auth = smtp.PlainAuth("", "zen@kaizentek.io", password, "smtp.gmail.com")
@@ -404,11 +422,11 @@ func (a accountService) sendPasswordResetEmail(ctx context.Context, req types.Ac
 }
 
 // CreateUser creates a new user
-func (a accountService) CreateUserInDB(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error) {
+func (a accountService) CreateUserInDB(ctx context.Context, req types.CreateUserRequest) (types.Account, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "login_user")
 	defer span.Finish()
 	var err error
-	var resp types.AccountResponse
+	var resp types.Account
 	defer func(begin time.Time) {
 		var code string
 		if err != nil {
@@ -445,7 +463,7 @@ func (a accountService) CreateUserInDB(ctx context.Context, req types.CreateUser
 		return resp, err
 	}
 
-	resp = types.AccountResponse{
+	resp = types.Account{
 		FirstName:     req.Account.FirstName,
 		LastName:      req.Account.LastName,
 		PhoneNumber:   req.Account.PhoneNumber,
@@ -515,15 +533,13 @@ func newRequest(to []string, subject, body string) *EmailRequest {
 	}
 }
 
-func generateResetToken(account types.AccountResponse) string {
+func generateResetToken(account types.Account) string {
+	b, _ := getPasswordHash(account.Username)
+	return passwordreset.NewToken(account.Username, 12*time.Hour, b, secret)
+}
 
-	h := sha1.New()
-	h.Write([]byte(account.Username + account.Password))
-	bs := h.Sum(nil)
-	e := fmt.Sprintf("%x", bs)
-	b := []byte(e)
-
-	return passwordreset.NewToken(account.Username, 1*time.Hour, b, secret)
+func getPasswordHash(login string) ([]byte, error) {
+	return []byte(login), nil
 }
 
 func (r *EmailRequest) parseTemplate(templateFileName string, data interface{}) error {

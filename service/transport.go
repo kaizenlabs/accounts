@@ -64,11 +64,11 @@ func MakeHTTPHandler(ctx context.Context, s Service, tracer stdopentracing.Trace
 		append(options, httptransport.ServerBefore(opentracing.HTTPToContext(tracer, "CreateUser", logger)))...,
 	))
 
-	sub.Methods("POST").Path("/v1/reset-password-request").Handler(httptransport.NewServer(
-		e.ResetPasswordRequestEndpoint,
-		decodeResetPasswordRequest,
+	sub.Methods("POST").Path("/v1/reset-password").Handler(httptransport.NewServer(
+		e.ResetPasswordEndpoint,
+		decodeResetPassword,
 		encodeResponse,
-		append(options, httptransport.ServerBefore(opentracing.HTTPToContext(tracer, "ResetPasswordRequest", logger)))...,
+		append(options, httptransport.ServerBefore(opentracing.HTTPToContext(tracer, "ResetPassword", logger)))...,
 	))
 
 	sub.HandleFunc("/debug/pprof/", httpprof.Index)
@@ -117,11 +117,11 @@ func decodeCreateUser(_ context.Context, r *http.Request) (request interface{}, 
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return types.AccountResponse{}, err
+		return types.Account{}, err
 	}
 	err = json.Unmarshal(body, &acc)
 	if err != nil {
-		return types.AccountResponse{}, err
+		return types.Account{}, err
 	}
 
 	return types.CreateUserRequest{
@@ -134,11 +134,11 @@ func decodeLoginUser(_ context.Context, r *http.Request) (request interface{}, e
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return types.AccountResponse{}, err
+		return types.Account{}, err
 	}
 	err = json.Unmarshal(body, &auth)
 	if err != nil {
-		return types.AccountResponse{}, err
+		return types.Account{}, err
 	}
 
 	return types.LoginRequest{
@@ -146,16 +146,16 @@ func decodeLoginUser(_ context.Context, r *http.Request) (request interface{}, e
 	}, nil
 }
 
-func decodeResetPasswordRequest(_ context.Context, r *http.Request) (request interface{}, err error) {
-	var resetPassword types.ResetPasswordRequest
+func decodeResetPassword(_ context.Context, r *http.Request) (request interface{}, err error) {
+	var resetPassword types.ResetPassword
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return types.ResetPasswordRequestResponse{}, err
+		return types.ResetPasswordResponse{}, err
 	}
 	err = json.Unmarshal(body, &resetPassword)
 	if err != nil {
-		return types.ResetPasswordRequestResponse{}, err
+		return types.ResetPasswordResponse{}, err
 	}
 
 	return resetPassword, nil

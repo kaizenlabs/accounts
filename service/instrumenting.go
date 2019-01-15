@@ -25,7 +25,7 @@ func InstrumentingMiddleware(requestCount metrics.Counter, requestLatency metric
 	}
 }
 
-func (m *instrumentingMiddleware) LoginUserService(ctx context.Context, req types.LoginRequest) (r types.AccountResponse, err error) {
+func (m *instrumentingMiddleware) LoginUserService(ctx context.Context, req types.LoginRequest) (r types.Account, err error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "LoginUser")
 	defer span.Finish()
 	span.LogFields(
@@ -53,7 +53,7 @@ func (m *instrumentingMiddleware) LoginUserService(ctx context.Context, req type
 	return r, err
 }
 
-func (m *instrumentingMiddleware) CreateUserService(ctx context.Context, req types.CreateUserRequest) (r types.AccountResponse, err error) {
+func (m *instrumentingMiddleware) CreateUserService(ctx context.Context, req types.CreateUserRequest) (r types.Account, err error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "CreateUser")
 	defer span.Finish()
 	span.LogFields(
@@ -80,12 +80,12 @@ func (m *instrumentingMiddleware) CreateUserService(ctx context.Context, req typ
 	return r, err
 }
 
-func (m *instrumentingMiddleware) ResetPasswordRequestService(ctx context.Context, req types.ResetPasswordRequest) (r types.ResetPasswordRequestResponse, err error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "ResetPasswordRequest")
+func (m *instrumentingMiddleware) ResetPasswordService(ctx context.Context, req types.ResetPassword) (r types.ResetPasswordResponse, err error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "ResetPassword")
 	defer span.Finish()
 	span.LogFields(
 		opentracinglog.String("Username", req.Username),
-		opentracinglog.String("method", "ResetPasswordRequest"),
+		opentracinglog.String("method", "ResetPassword"),
 	)
 
 	defer func(begin time.Time) {
@@ -96,14 +96,14 @@ func (m *instrumentingMiddleware) ResetPasswordRequestService(ctx context.Contex
 			code = "200"
 		}
 
-		m.requestCount.With("method", "ResetPasswordRequest", "code", code, "granularity", "total").Add(1)
-		m.requestLatency.With("method", "ResetPasswordRequest", "granularity", "total").Observe(time.Since(begin).Seconds())
-		m.circuitStatus.With("circuit_name", "ResetPasswordRequest").Set(getCircuitStatus("ResetPasswordRequest"))
+		m.requestCount.With("method", "ResetPassword", "code", code, "granularity", "total").Add(1)
+		m.requestLatency.With("method", "ResetPassword", "granularity", "total").Observe(time.Since(begin).Seconds())
+		m.circuitStatus.With("circuit_name", "ResetPassword").Set(getCircuitStatus("ResetPassword"))
 	}(time.Now())
 	if err != nil {
 		span.SetTag("error", err.Error())
 	}
-	r, err = m.next.ResetPasswordRequestService(ctx, req)
+	r, err = m.next.ResetPasswordService(ctx, req)
 	return r, err
 }
 
