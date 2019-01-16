@@ -307,6 +307,8 @@ func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRe
 		Company:       acc.Company,
 		Username:      acc.Username,
 		AccountNumber: acc.AccountNumber,
+		Team:          acc.Team,
+		IsAdmin:       acc.IsAdmin,
 	}
 
 	return resp, err
