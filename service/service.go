@@ -274,9 +274,30 @@ func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRe
 		return resp, err
 	}
 
+	now := time.Now().UTC()
+	diff := now.Sub(acc.Locked)
+	if diff.Hours() < 24.00 {
+		return resp, errors.ErrMissingParametersReason.New("Account Locked: Too many login attempts")
+	}
+
 	err = comparePassword(acc.Password, req.Auth.Password)
 	if err != nil {
-		return resp, err
+		acc.LoginAttempts = acc.LoginAttempts + 1
+		if acc.LoginAttempts == 10 {
+			acc.Locked = time.Now().UTC()
+		}
+
+		_, err := a.UpdateUserRecord(ctx, *acc)
+		if err != nil {
+			return resp, err
+		}
+	} else {
+		acc.LastLogin = now
+		acc.LoginAttempts = 0
+		_, err := a.UpdateUserRecord(ctx, *acc)
+		if err != nil {
+			return resp, err
+		}
 	}
 
 	resp = types.Account{

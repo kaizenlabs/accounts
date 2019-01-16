@@ -60,6 +60,8 @@ type Account struct {
 	Fingerprints  []string  `json:"fingerprints"`
 	LastLogin     time.Time `json:"lastlogin"`
 	License       string    `json:"license"`
+	Locked        time.Time `json:"locked"`
+	LoginAttempts int       `json:"loginattempts"`
 }
 
 // Auth represent an authentication request
