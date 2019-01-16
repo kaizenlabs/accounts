@@ -277,7 +277,7 @@ func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRe
 	now := time.Now().UTC()
 	diff := now.Sub(acc.Locked)
 	if diff.Hours() < 24.00 {
-		return resp, errors.ErrMissingParametersReason.New("Account Locked: Too many login attempts")
+		return resp, errors.ErrForbiddenReason.New("Account Locked: Too many login attempts")
 	}
 
 	err = comparePassword(acc.Password, req.Auth.Password)
@@ -512,7 +512,7 @@ func comparePassword(hashedPassword string, plainPwd string) error {
 
 	err := bcrypt.CompareHashAndPassword(hashBytes, hashAttempt)
 	if err != nil {
-		return err
+		return errors.ErrUnauthorizedReason.New("Invalid login")
 	}
 
 	return nil
