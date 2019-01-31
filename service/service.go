@@ -15,6 +15,7 @@ import (
 	datastore "cloud.google.com/go/datastore"
 	"github.com/afex/hystrix-go/hystrix"
 	"github.com/dchest/passwordreset"
+	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/go-kit/kit/metrics"
 	"github.com/johnantonusmaximus/accounts/service/types"
 	"github.com/johnantonusmaximus/go-common/src/errors"
@@ -45,8 +46,8 @@ func AccountService(requestCount metrics.Counter, requestLatency metrics.Histogr
 
 // Service defines an Accounts service interface for Go-Kit
 type Service interface {
-	LoginUserService(ctx context.Context, req types.LoginRequest) (types.Account, error)
-	CreateUserService(ctx context.Context, req types.CreateUserRequest) (types.Account, error)
+	LoginUserService(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error)
+	CreateUserService(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error)
 	ResetPasswordService(ctx context.Context, req types.ResetPassword) (types.ResetPasswordResponse, error)
 	GetConfig() *viper.Viper
 }
@@ -56,9 +57,9 @@ func (a accountService) GetConfig() *viper.Viper {
 }
 
 // LoginUser logs in a user
-func (a accountService) LoginUserService(ctx context.Context, req types.LoginRequest) (types.Account, error) {
+func (a accountService) LoginUserService(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error) {
 	if req.Auth.Username == "" || req.Auth.Password == "" {
-		return types.Account{}, errors.ErrMissingParametersReason.New("Username or password is missing")
+		return types.AccountResponse{}, errors.ErrMissingParametersReason.New("Username or password is missing")
 	}
 
 	LoginResponse, err := a.Login(ctx, req)
@@ -67,9 +68,9 @@ func (a accountService) LoginUserService(ctx context.Context, req types.LoginReq
 }
 
 // CreateUser creates a new user
-func (a accountService) CreateUserService(ctx context.Context, req types.CreateUserRequest) (types.Account, error) {
+func (a accountService) CreateUserService(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error) {
 	if req.Account.AccountNumber == "" || req.Account.Company == "" || req.Account.FirstName == "" || req.Account.LastName == "" || req.Account.PhoneNumber == "" || req.Account.Username == "" {
-		return types.Account{}, errors.ErrMissingParametersReason.New("Missing parameters for account creation")
+		return types.AccountResponse{}, errors.ErrMissingParametersReason.New("Missing parameters for account creation")
 	}
 
 	CreateUserResponse, err := a.CreateUser(ctx, req)
@@ -87,10 +88,10 @@ func (a accountService) ResetPasswordService(ctx context.Context, req types.Rese
 }
 
 // Login logs in a user
-func (a accountService) Login(ctx context.Context, req types.LoginRequest) (types.Account, error) {
+func (a accountService) Login(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error) {
 	output := make(chan bool, 1)
 	var err error
-	var loginResponse types.Account
+	var loginResponse types.AccountResponse
 	errs := hystrix.Go("LoginUser", func() error {
 		loginResponse, err = a.GetUserDataFromDB(ctx, req)
 		if err != nil {
@@ -120,10 +121,10 @@ func (a accountService) Login(ctx context.Context, req types.LoginRequest) (type
 }
 
 // Login logs in a user
-func (a accountService) CreateUser(ctx context.Context, req types.CreateUserRequest) (types.Account, error) {
+func (a accountService) CreateUser(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error) {
 	output := make(chan bool, 1)
 	var err error
-	var createUserResponse types.Account
+	var createUserResponse types.AccountResponse
 	errs := hystrix.Go("CreateUser", func() error {
 		err = a.CheckForUserInDB(ctx, req)
 		if err != nil {
@@ -245,11 +246,11 @@ func (a accountService) ResetPassword(ctx context.Context, req types.ResetPasswo
 }
 
 // GetUserDataFromDB gets the user from the database
-func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRequest) (types.Account, error) {
+func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRequest) (types.AccountResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "login_user")
 	defer span.Finish()
 	var err error
-	var resp types.Account
+	var resp types.AccountResponse
 	defer func(begin time.Time) {
 		var code string
 		if err != nil {
@@ -300,7 +301,12 @@ func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRe
 		}
 	}
 
-	resp = types.Account{
+	tokenString, err := createToken(acc)
+	if err != nil {
+		return resp, err
+	}
+
+	resp = types.AccountResponse{
 		FirstName:     acc.FirstName,
 		LastName:      acc.LastName,
 		PhoneNumber:   acc.PhoneNumber,
@@ -309,6 +315,7 @@ func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRe
 		AccountNumber: acc.AccountNumber,
 		Team:          acc.Team,
 		IsAdmin:       acc.IsAdmin,
+		TokenString:   tokenString,
 	}
 
 	return resp, err
@@ -446,11 +453,11 @@ func (a accountService) sendPasswordResetEmail(ctx context.Context, req types.Ac
 }
 
 // CreateUser creates a new user
-func (a accountService) CreateUserInDB(ctx context.Context, req types.CreateUserRequest) (types.Account, error) {
+func (a accountService) CreateUserInDB(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "login_user")
 	defer span.Finish()
 	var err error
-	var resp types.Account
+	var resp types.AccountResponse
 	defer func(begin time.Time) {
 		var code string
 		if err != nil {
@@ -487,7 +494,7 @@ func (a accountService) CreateUserInDB(ctx context.Context, req types.CreateUser
 		return resp, err
 	}
 
-	resp = types.Account{
+	resp = types.AccountResponse{
 		FirstName:     req.Account.FirstName,
 		LastName:      req.Account.LastName,
 		PhoneNumber:   req.Account.PhoneNumber,
@@ -518,6 +525,31 @@ func comparePassword(hashedPassword string, plainPwd string) error {
 	}
 
 	return nil
+}
+
+func createToken(acc *types.Account) (string, error) {
+	now := time.Now()
+	secs := now.Unix()
+
+	claims := jwt.MapClaims{
+		"Account":   acc.AccountNumber,
+		"Username":  acc.Username,
+		"IsAdmin":   acc.IsAdmin,
+		"Team":      acc.Team,
+		"Timestamp": secs,
+		"StandardClaims": jwt.StandardClaims{
+			Issuer: "Ethos",
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
+
+	tokenString, err := token.SignedString(secret)
+	if err != nil {
+		return "", err
+	}
+	return tokenString, err
+
 }
 
 func checkForDataErrors(acc types.Account) string {

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	httpprof "net/http/pprof"
 	"os"
+	"time"
 
 	"github.com/go-kit/kit/log"
 	opentracing "github.com/go-kit/kit/tracing/opentracing"
@@ -53,7 +54,7 @@ func MakeHTTPHandler(ctx context.Context, s Service, tracer stdopentracing.Trace
 	sub.Methods("POST").Path("/v1/login").Handler(httptransport.NewServer(
 		e.LoginEndpoint,
 		decodeLoginUser,
-		encodeResponse,
+		encodeLoginResponse,
 		append(options, httptransport.ServerBefore(opentracing.HTTPToContext(tracer, "LoginUser", logger)))...,
 	))
 
@@ -83,8 +84,10 @@ func MakeHTTPHandler(ctx context.Context, s Service, tracer stdopentracing.Trace
 	sub.Handle("/metrics", promhttp.HandlerFor(stdprometheus.DefaultGatherer, promhttp.HandlerOpts{}))
 	sub.HandleFunc("/health", HealthCheckHandler)
 	c := cors.New(cors.Options{
-		AllowedOrigins: []string{"https://*.ethos.cloud", "http://localhost:8080"},
-		Debug:          true,
+		AllowedOrigins:   []string{"https://*.ethos.cloud", "http://localhost:8080"},
+		AllowedHeaders:   []string{"Content-Type"},
+		AllowCredentials: true,
+		Debug:            true,
 	})
 	handler := c.Handler(sub)
 	//originsOK := handlers.AllowedOrigins([]string{"*"})
@@ -106,6 +109,25 @@ func encodeResponse(ctx context.Context, w http.ResponseWriter, response interfa
 	if e, ok := response.(errorer); ok && e.error() != nil {
 		encodeError(ctx, e.error(), w)
 		return nil
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	return json.NewEncoder(w).Encode(response)
+}
+
+func encodeLoginResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+	if e, ok := response.(errorer); ok && e.error() != nil {
+		encodeError(ctx, e.error(), w)
+		return nil
+	}
+	loginResp := response.(*GetAccountResponse)
+	if len(loginResp.AccountResponse.Username) > 0 {
+		http.SetCookie(w, &http.Cookie{
+			Name:    "Authorization",
+			Value:   "Bearer " + loginResp.TokenString,
+			Expires: time.Now().Add(time.Second * 30000),
+			Path:    "/",
+		})
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")

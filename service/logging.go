@@ -28,7 +28,7 @@ type loggingMiddleware struct {
 	logger log.Logger
 }
 
-func (m loggingMiddleware) CreateUserService(ctx context.Context, req types.CreateUserRequest) (r types.Account, err error) {
+func (m loggingMiddleware) CreateUserService(ctx context.Context, req types.CreateUserRequest) (r types.AccountResponse, err error) {
 	if shouldLog(err, m) {
 		defer func(begin time.Time) {
 			m.logger.Log("method", "CreateUser", "Username", req.Account.Username, "FirstName", req.Account.FirstName, "LastName", req.Account.LastName, "PhoneNumber", req.Account.PhoneNumber, "Company", req.Account.Company, "AccountNumber", req.Account.AccountNumber, "took", fmt.Sprintf("%vms", time.Since(begin).Seconds()*1000), "err", err)
@@ -37,7 +37,7 @@ func (m loggingMiddleware) CreateUserService(ctx context.Context, req types.Crea
 	return m.next.CreateUserService(ctx, req)
 }
 
-func (m loggingMiddleware) LoginUserService(ctx context.Context, req types.LoginRequest) (r types.Account, err error) {
+func (m loggingMiddleware) LoginUserService(ctx context.Context, req types.LoginRequest) (r types.AccountResponse, err error) {
 	if shouldLog(err, m) {
 		defer func(begin time.Time) {
 			m.logger.Log("method", "LoginUser", "Username", req.Auth.Username, "Password", req.Auth.Password, "took", fmt.Sprintf("%vms", time.Since(begin).Seconds()*1000), "err", err)

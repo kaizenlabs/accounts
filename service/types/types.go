@@ -8,19 +8,15 @@ import (
 
 // AccountResponse defines an account response
 type AccountResponse struct {
-	FirstName     string
-	LastName      string
-	PhoneNumber   string
-	Company       string
-	Username      string
-	AccountNumber string
-	Password      string
-	ResetToken    string
-	Team          string
-	IsAdmin       bool
-	Fingerprints  []string
-	LastLogin     time.Time
-	License       string
+	FirstName     string `json:"FirstName"`
+	LastName      string `json:"LastName"`
+	PhoneNumber   string `json:"PhoneNumber"`
+	Company       string `json:"Company"`
+	Username      string `json:"Username"`
+	AccountNumber string `json:"AccountNumber"`
+	Team          string `json:"Team"`
+	IsAdmin       bool   `json:"IsAdmin"`
+	TokenString   string
 }
 
 // LoginRequest defines an account response
@@ -52,16 +48,16 @@ type Account struct {
 	PhoneNumber   string    `json:"phoneNumber"`
 	Company       string    `json:"company"`
 	Username      string    `json:"username"`
-	Password      string    `json:"password"`
+	Password      string    `json:"password,omitempty"`
 	AccountNumber string    `json:"accountNumber"`
-	ResetToken    string    `json:"resettoken"`
+	ResetToken    string    `json:"resettoken,omitempty"`
 	Team          string    `json:"team"`
 	IsAdmin       bool      `json:"isadmin"`
-	Fingerprints  []string  `json:"fingerprints"`
-	LastLogin     time.Time `json:"lastlogin"`
-	License       string    `json:"license"`
-	Locked        time.Time `json:"locked"`
-	LoginAttempts int       `json:"loginattempts"`
+	Fingerprints  []string  `json:"fingerprints,omitempty"`
+	LastLogin     time.Time `json:"lastlogin,omitempty"`
+	License       string    `json:"license,omitempty"`
+	Locked        time.Time `json:"locked,omitempty"`
+	LoginAttempts int       `json:"loginattempts,omitempty"`
 }
 
 // Auth represent an authentication request

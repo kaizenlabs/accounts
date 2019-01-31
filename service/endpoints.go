@@ -21,7 +21,7 @@ func MakeLoginEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(types.LoginRequest)
 		r, e := s.LoginUserService(ctx, req)
-		return &getAccountResponse{r}, e
+		return &GetAccountResponse{r}, e
 	}
 }
 
@@ -30,7 +30,7 @@ func MakeCreateUserEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(types.CreateUserRequest)
 		r, e := s.CreateUserService(ctx, req)
-		return &getAccountResponse{r}, e
+		return &GetAccountResponse{r}, e
 	}
 }
 
@@ -39,16 +39,16 @@ func MakeResetPasswordEndpoint(s Service) endpoint.Endpoint {
 	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
 		req := request.(types.ResetPassword)
 		r, e := s.ResetPasswordService(ctx, req)
-		return &getResetPasswordResponse{r}, e
+		return &GetResetPasswordResponse{r}, e
 	}
 }
 
 // response for request
 // swagger:response productResponse
-type getAccountResponse struct {
-	types.Account
+type GetAccountResponse struct {
+	types.AccountResponse
 }
 
-type getResetPasswordResponse struct {
+type GetResetPasswordResponse struct {
 	types.ResetPasswordResponse
 }

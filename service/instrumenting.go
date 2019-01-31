@@ -25,7 +25,7 @@ func InstrumentingMiddleware(requestCount metrics.Counter, requestLatency metric
 	}
 }
 
-func (m *instrumentingMiddleware) LoginUserService(ctx context.Context, req types.LoginRequest) (r types.Account, err error) {
+func (m *instrumentingMiddleware) LoginUserService(ctx context.Context, req types.LoginRequest) (r types.AccountResponse, err error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "LoginUser")
 	defer span.Finish()
 	span.LogFields(
@@ -53,7 +53,7 @@ func (m *instrumentingMiddleware) LoginUserService(ctx context.Context, req type
 	return r, err
 }
 
-func (m *instrumentingMiddleware) CreateUserService(ctx context.Context, req types.CreateUserRequest) (r types.Account, err error) {
+func (m *instrumentingMiddleware) CreateUserService(ctx context.Context, req types.CreateUserRequest) (r types.AccountResponse, err error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "CreateUser")
 	defer span.Finish()
 	span.LogFields(
