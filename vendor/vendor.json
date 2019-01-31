@@ -123,6 +123,12 @@
 			"revisionTime": "2012-07-23T10:22:25Z"
 		},
 		{
+			"checksumSHA1": "blOHP3HPYU+IeV6yWCalQuuM+zE=",
+			"path": "github.com/dgrijalva/jwt-go",
+			"revision": "3af4c746e1c248ee8491a3e0c6f7a9cd831e95f8",
+			"revisionTime": "2018-09-21T17:23:15Z"
+		},
+		{
 			"checksumSHA1": "y2Kh4iPlgCPXSGTCcFpzePYdzzg=",
 			"path": "github.com/eapache/go-resiliency/breaker",
 			"revision": "b1fe83b5b03f624450823b751b662259ffc6af70",
