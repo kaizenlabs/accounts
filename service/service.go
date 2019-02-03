@@ -290,20 +290,23 @@ func (a accountService) GetUserDataFromDB(ctx context.Context, req types.LoginRe
 
 		_, err := a.UpdateUserRecord(ctx, *acc)
 		if err != nil {
-			return resp, err
+			return resp, errors.ErrServerErrorReason.New("There was a server error")
 		}
-	} else {
-		acc.LastLogin = now
-		acc.LoginAttempts = 0
-		_, err := a.UpdateUserRecord(ctx, *acc)
-		if err != nil {
-			return resp, err
-		}
+
+		return resp, errors.ErrUnauthorizedReason.New("Invalid login")
+
+	}
+
+	acc.LastLogin = now
+	acc.LoginAttempts = 0
+	_, err = a.UpdateUserRecord(ctx, *acc)
+	if err != nil {
+		return resp, errors.ErrServerErrorReason.New("There was a server error")
 	}
 
 	tokenString, err := createToken(acc)
 	if err != nil {
-		return resp, err
+		return resp, errors.ErrServerErrorReason.New("There was a server error")
 	}
 
 	resp = types.AccountResponse{
