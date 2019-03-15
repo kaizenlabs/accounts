@@ -536,6 +536,7 @@ func createToken(acc *types.Account) (string, error) {
 
 	claims := jwt.MapClaims{
 		"Account":   acc.AccountNumber,
+		"Company":   acc.Company,
 		"Username":  acc.Username,
 		"IsAdmin":   acc.IsAdmin,
 		"Team":      acc.Team,
