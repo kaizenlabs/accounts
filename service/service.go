@@ -200,6 +200,7 @@ func (a accountService) ResetPassword(ctx context.Context, req types.ResetPasswo
 				Account: accountResponse,
 			}
 
+			// We need to recreate the user in the database using all their original information plus the new password
 			_, err = a.CreateUserInDB(ctx, createUserRequest)
 			if err != nil {
 				return err
