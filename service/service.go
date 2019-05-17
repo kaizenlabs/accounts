@@ -69,7 +69,7 @@ func (a accountService) LoginUserService(ctx context.Context, req types.LoginReq
 
 // CreateUser creates a new user
 func (a accountService) CreateUserService(ctx context.Context, req types.CreateUserRequest) (types.AccountResponse, error) {
-	if req.Account.AccountNumber == "" || req.Account.Company == "" || req.Account.FirstName == "" || req.Account.LastName == "" || req.Account.PhoneNumber == "" || req.Account.Username == "" {
+	if req.Account.AccountNumber == "" || req.Account.Company == "" || req.Account.FirstName == "" || req.Account.LastName == "" || req.Account.PhoneNumber == "" || req.Account.Username == "" || req.Account.Team == "" {
 		return types.AccountResponse{}, errors.ErrMissingParametersReason.New("Missing parameters for account creation")
 	}
 
@@ -498,6 +498,14 @@ func (a accountService) CreateUserInDB(ctx context.Context, req types.CreateUser
 		return resp, err
 	}
 
+	var isAdmin bool
+
+	if req.Account.Team == "Admin" {
+		isAdmin = true
+	} else {
+		isAdmin = false
+	}
+
 	resp = types.AccountResponse{
 		FirstName:     req.Account.FirstName,
 		LastName:      req.Account.LastName,
@@ -506,7 +514,7 @@ func (a accountService) CreateUserInDB(ctx context.Context, req types.CreateUser
 		Username:      req.Account.Username,
 		AccountNumber: req.Account.AccountNumber,
 		Team:          req.Account.Team,
-		IsAdmin:       req.Account.IsAdmin,
+		IsAdmin:       isAdmin,
 	}
 	return resp, err
 }
