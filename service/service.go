@@ -484,8 +484,18 @@ func (a accountService) CreateUserInDB(ctx context.Context, req types.CreateUser
 	if err != nil {
 		return resp, err
 	}
+
+	var isAdmin bool
+
+	if req.Account.Team == "Admin" {
+		isAdmin = true
+	} else {
+		isAdmin = false
+	}
+
 	req.Account.Password = hashedPassword
 	accPtr := &req.Account
+	req.Account.IsAdmin = isAdmin
 
 	client, err := datastore.NewClient(ctx, a.config.GetString("PROJECT_ID"))
 	if err != nil {
@@ -496,14 +506,6 @@ func (a accountService) CreateUserInDB(ctx context.Context, req types.CreateUser
 	_, err = client.Put(ctx, newKey, accPtr)
 	if err != nil {
 		return resp, err
-	}
-
-	var isAdmin bool
-
-	if req.Account.Team == "Admin" {
-		isAdmin = true
-	} else {
-		isAdmin = false
 	}
 
 	resp = types.AccountResponse{
