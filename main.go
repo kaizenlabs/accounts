@@ -26,7 +26,7 @@ const PORT string = "3002"
 func main() {
 	var tracer stdopentracing.Tracer
 	{
-		const zipkinHTTPEndpoint = "http://zipkin-svc.monitoring:9411/api/v1/spans"
+		const zipkinHTTPEndpoint = "http://localhost:9441/api/v1/spans"
 		collector, err := zipkin.NewHTTPCollector(zipkinHTTPEndpoint)
 		debug := false
 		if err != nil {

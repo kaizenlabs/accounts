@@ -1,0 +1,45 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: accounts-deployment
+  labels:
+    name: develop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: accounts
+  template:
+    metadata:
+      labels:
+        component: accounts
+    spec:
+      volumes:
+        - name: google-cloud-key
+          secret:
+            secretName: app-key
+      containers:
+        - name: accounts
+          image: johnantonusmaximus/accounts:develop
+          ports:
+            - containerPort: 3002
+          env:
+            - name: ENV
+              value: develop
+            - name: DATASTORE_PROJECT_ID
+              value: ethos-197614
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /var/secrets/google/sa.json
+            - name: EMAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: email-password
+                  key: email-password
+            - name: ENCRYPT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: encrypt-secret
+                  key: encrypt-secret
+          volumeMounts:
+            - name: google-cloud-key
+              mountPath: /var/secrets/google 
