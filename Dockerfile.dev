@@ -1,6 +1,6 @@
 FROM golang:alpine as builder
 RUN apk add --no-cache git mercurial
-RUN git config --global url."https://johnantonusmaximus:efa974ee30e41bdcf4e1a99c92a365d83fee1a65@github.com/".insteadOf "https://github.com/"
+RUN git config --global url."https://kaizenlabs:efa974ee30e41bdcf4e1a99c92a365d83fee1a65@github.com/".insteadOf "https://github.com/"
 WORKDIR /go/src/github.com/johnantonusmaximus/accounts
 COPY . .
 RUN go get -u github.com/kardianos/govendor
@@ -10,8 +10,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o Accounts .
 
 FROM alpine:latest
 RUN apk update && apk add ca-certificates && apk add curl && rm -rf /var/cache/apk/*
-COPY --from=builder /go/src/github.com/johnantonusmaximus/accounts/Accounts . 
-COPY --from=builder /go/src/github.com/johnantonusmaximus/accounts/conf /conf
-COPY --from=builder /go/src/github.com/johnantonusmaximus/accounts/templates /templates
+COPY --from=builder /go/src/github.com/kaizenlabs/accounts/Accounts . 
+COPY --from=builder /go/src/github.com/kaizenlabss/accounts/conf /conf
+COPY --from=builder /go/src/github.com/kaizenlabs/accounts/templates /templates
 EXPOSE 3002
 CMD ["./Accounts"]
